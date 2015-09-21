@@ -1,0 +1,37 @@
+{
+  "name": "php-kit/composer-shared-packages-plugin",
+  "description": "Makes package development easier by sharing them between projects",
+  "type": "composer-plugin",
+  "keywords": [
+    "composer",
+    "plugin"
+  ],
+  "homepage": "https://github.com/php-kit/composer-shared-packages-plugin",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Impactwave",
+      "email": "impactwave@impactwave.com",
+      "homepage": "http://impactwave.com"
+    },
+    {
+      "name": "Cláudio Silva",
+      "email": "claudio.silva@impactwave.com"
+    }
+  ],
+  "minimum-stability": "dev",
+  "require": {
+    "composer-plugin-api": "^1.0"
+  },
+  "require-dev": {
+    "composer/composer": "dev-master"
+  },
+  "extra": {
+    "class": "PhpKit\\ComposerSharedPackagesPlugin\\Plugin"
+  },
+  "autoload": {
+    "psr-4": {
+      "PhpKit\\ComposerSharedPackagesPlugin\\": "src"
+    }
+  }
+}
