@@ -28,6 +28,11 @@ You will need to rembember to manually update a project using `composer update` 
 
 If you perform a `composer update` on a project where a shared package has uncommited changes, Composer will warn you and allow you to either keep, discard or commit those changes before the installation proceeds.
 
+### Requirements
+
+- PHP version >= 5.4
+- Operating System: Mac OS X or Linux
+
 ### Installing
 
 Add `php-kit/composer-shared-packages-plugin` to the `composer.json`'s `require-dev` setting of projects that will use shared packages.
@@ -60,15 +65,15 @@ You should also specify the directory path of the central installation location 
 },
 "extra": {
   "shared-packages": {
-    "match": {
+    "match": [
       "vendor/package",
       "vendor/prefix-*"
       "vendor/package-*-whatever"
       "vendor/wildcards??"
       "vendor/*"
       "*"
-    },
-    "directory": "~/shared-packages"
+    ],
+    "sharedDir": "~/shared-packages"
   }
 }
 ```
