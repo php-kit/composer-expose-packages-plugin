@@ -30,40 +30,53 @@ This plugin
 
 Currently, the plugin does not support multiple syde-by-side installations of the same package, with different versions.
 
-**This is by design**, as it would be difficult to synchronize symlinks to would keep jumping from directory to directory whenever the corresponding packages are updated to a new version. Also, it would defeat the purpose of registering the VCS directories only once on a VCS GUI client and not having to continually reconfigure VCS remotes.
+**This is by design**, as it would be difficult to synchronize symlinks that would keep jumping from directory to directory whenever the corresponding packages would be updated to a new version. Also, it would defeat the purpose of registering the shared directories only once on a VCS GUI client and not having to continually reconfigure VCS remotes.
 
-**Caution:** updating a project may break other installed projects that share packages with it. When switching development to one of those projects, always make sure to:
-- perform a `composer update` on it;
-- manually perform a VCS pull on those packages that were still not updated (see why below).
+#### How does it work?
 
-#### Updating packages
+This plugin can run in two modes:
+
+##### Safe mode (the default)
+
+> This mode is safer for package development, because your shared packages are always preserved. Unfortunately, this may also prevent Composer from correcly updating all shared packages to the correct versions required by a project. Use this with some **caution**.
 
 When performing a `composer install` or `composer update` on a project, the following behaviour will take place:
 
-1. If a new package has been installed (or not yet shared), it will be copied into the shared directory before being symlinked.
-  - if the package is already present on the shared directory, that version will be discarded and the newly installed version will still be copied to that location. This makes sure the shared package is the version required by the current project.
-   
-    > You may loose uncommited changes on the shared package as Composer will not ask you for confirmation. Make sure you commit pending changes to all relevant shared packages before running `composer install` on a **new** project.
+1. Before Composer actually installs/updates packages, the plugin will:
+  - Determine which packages match the shared selection rules.
+  - Find out which ones are not installed on the project yet.
+    - For those that are also present on the shared directory, a symlink to it will be created on the target installation directory.
+    - For those that are not shared yet, nothing will happen at this stage.
+  - For those that are already installed (either symlinked or not), they are left as they are, at this stage.
 
-2. If a package is already shared:
-  - If its version number is not the one required by the project, it will be updated.
-  - If its version has not changed (ex: `dev-master`) the package may not be updated (even if the latest commit hash on the remote has changed).
-    - You will have to manually pull the package from the remote VCS to make sure it is current. 
+2. Composer performs its normal installation/updating.
 
-##### Making sure shared packages are correctly updated for a specific project
+3. All shareable packages will be scanned again.
+  - Those that are already symlinked are left as they are.
+  - The others are packages that are currently not being shared (either because they were newly installed or because they were previously installed before begin shared).
+    - If the package is not yet present on the shared directory, it will be moved there and replaced by a symlink on the installation directory.
+    - Otherwise, to prevent accidental loss of possibly uncommited changes on the existing shared package, the existing package on the installation directory is discarded and replaced by a symlink to the existing shared package.
 
-To prevent problems with mismatched package versions when switching to, and resuming development on another project that is using shared packages and it is already installed on your machine, you should update the project using the following command:
+##### Refresh mode
+
+You can also run a composer install/update on **forced refresh** mode, by typing:
 
 ```sh
-composer update @refresh
+composer update @shared:refresh
 ```
 
-This will cause the plugin to:
+In this mode, Composer will make sure all shared packages are correctly updated for a specific project.
+
+This is useful to prevent problems with mismatched package versions when switching to, and resuming development on another project that is using shared packages and it is already installed on your machine.
+
+The execution steps are similar to the ones depicted above but, in this mode, the plugin will:
 
 - remove all symlinks,
 - reinstall all shared packages with the versions required by the project,
 - move those packages to the shared directory,
 - reinstall the symlinks to those shared packages.
+
+> You may loose uncommited changes on shared packages as Composer will not ask you for confirmation before discarding them. Make sure you commit pending changes to all relevant shared packages before running an install/update on this mode.
 
 ### Requirements
 
