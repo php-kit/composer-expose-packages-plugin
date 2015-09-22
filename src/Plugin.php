@@ -6,6 +6,7 @@ use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
 use Composer\Json\JsonFile;
 use Composer\Package\PackageInterface;
+use Composer\Plugin\CommandEvent;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Util\Filesystem as FilesystemUtil;
@@ -17,17 +18,24 @@ class Plugin implements PluginInterface, EventSubscriberInterface
   const EXTRA_KEY          = 'shared-packages';
   const RULES_KEY          = 'match';
   const SHARED_DIR_KEY     = 'sharedDir';
+
+  protected static $AVAILABLE_OPTIONS = [
+    'refresh' => 'Force refresh mode',
+  ];
+
   /** @var Composer */
   protected $composer;
   /** @var IOInterface */
   protected $io;
-  protected $lead = "<comment>[shared-packages-plugin]</comment>";
+  protected $lead          = "<comment>[shared-packages-plugin]</comment>";
+  protected $optionRefresh = false;
 
   public static function getSubscribedEvents ()
   {
     return [
       'post-install-cmd' => [['onPostUpdate', 0]],
       'post-update-cmd'  => [['onPostUpdate', 0]],
+      'command'          => [['onCommand', 0]],
     ];
   }
 
@@ -50,6 +58,29 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     $this->io       = $io;
   }
 
+  public function onCommand (CommandEvent $event)
+  {
+    $name = $event->getCommandName ();
+    if ($name == 'update' || $name == 'install') {
+      $args    = $event->getInput ()->getArgument ('packages');
+      $newArgs = [];
+      foreach ($args as $arg) {
+        $argName = substr ($arg, 1);
+        if ($arg[0] == '@') {
+          if (isset(self::$AVAILABLE_OPTIONS[$argName])) {
+            $op        = 'option' . ucfirst ($argName);
+            $this->$op = true;
+            $this->info (self::$AVAILABLE_OPTIONS[$argName] . " <info>enabled</info>");
+          }
+          else throw new \RuntimeException("Plugin argument $arg is not valid");
+        }
+        else $newArgs[] = $arg;
+      }
+      if ($newArgs != $args)
+        $event->getInput ()->setArgument ('packages', $newArgs);
+    }
+  }
+
   public function onPostUpdate (Event $event)
   {
     // Load global plugin configuration
@@ -59,7 +90,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
       $extra    = self::get ($globalCfg, 'extra', []);
       $myConfig = self::get ($extra, self::EXTRA_KEY, []);
       if ($myConfig)
-        $this->info ("Loaded global configuration");
+        $this->info ("Global configuration loaded");
     }
     else $myConfig = [];
 
@@ -70,6 +101,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     if ($package->getName () != '__root__') {
       $projCfg  = self::get ($package->getExtra (), self::EXTRA_KEY, []);
       $myConfig = array_merge_recursive ($myConfig, $projCfg);
+      $this->info ("Project-specific configuration loaded");
     }
 
     // Setup
@@ -80,13 +112,14 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     $packages  = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
     $rulesInfo = implode (', ', $rules);
     $this->info ("Shared directory: <info>$sharedDir</info>");
-    $this->info ("Rules: <info>$rulesInfo</info>");
+    $this->info ("Match packages: <info>$rulesInfo</info>");
 
     $fsUtil = new FilesystemUtil;
     $fs     = new Filesystem();
 
     // Do useful work
 
+    $count = 0;
     foreach ($packages as $package) {
       $srcDir      = $this->getInstallPath ($package);
       $packageName = $package->getName ();
@@ -101,8 +134,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface
           $this->info ("Symlinked to existing <info>$packageName</info> on shared directory");
         }
         $fs->symlink ($destPath, $srcDir);
+        ++$count;
       }
     }
+    if (!$count)
+      $this->info ("No packages matched");
   }
 
   protected function getGlobalConfig ()
