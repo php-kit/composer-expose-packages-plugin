@@ -4,6 +4,7 @@ namespace PhpKit\ComposerSharedPackagesPlugin;
 use Composer\Composer;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
+use Composer\Json\JsonFile;
 use Composer\Package\PackageInterface;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
@@ -25,7 +26,10 @@ function globMatchAny (array $rules, $target)
 
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
-  const DEFAULT_SHARED_DIR = 'shared-packages';
+  const DEFAULT_SHARED_DIR = '~/shared-packages';
+  const EXTRA_KEY          = 'shared-packages';
+  const RULES_KEY          = 'match';
+  const SHARED_DIR_KEY     = 'sharedDir';
   /** @var Composer */
   protected $composer;
   /** @var IOInterface */
@@ -52,13 +56,33 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
   public function onPostUpdate (Event $event)
   {
-    $cfg       = get ($this->composer->getPackage ()->getExtra (), self::DEFAULT_SHARED_DIR);
-    $rules     = get ($cfg, 'match', []);
-    $sharedDir = str_replace ('~', getenv ('HOME'), get ($cfg, 'sharedDir', '~/shared-packages'));
+    // Load plugin configuration
+
+    $globalCfg = $this->getGlobalConfig ();
+
+    if ($globalCfg) {
+      $extra    = get ($globalCfg, 'extra', []);
+      $myConfig = get ($extra, self::EXTRA_KEY, []);
+      if ($myConfig)
+        $this->info ("Loaded global configuration");
+    }
+    else $myConfig = [];
+    $projCfg  = get ($this->composer->getPackage ()->getExtra (), self::EXTRA_KEY, []);
+    $myConfig = array_merge_recursive ($myConfig, $projCfg);
+
+    // Setup
+
+    $rules     = array_unique (get ($myConfig, self::RULES_KEY, []));
+    $sharedDir = str_replace ('~', getenv ('HOME'), get ($myConfig, self::SHARED_DIR_KEY, self::DEFAULT_SHARED_DIR));
     $packages  = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
-    $fsUtil    = new FilesystemUtil;
-    $fs        = new Filesystem();
+    $rulesInfo = implode (', ', $rules);
     $this->info ("Shared directory: <info>$sharedDir</info>");
+    $this->info ("Rules: <info>$rulesInfo</info>");
+
+    $fsUtil = new FilesystemUtil;
+    $fs     = new Filesystem();
+
+    // Do useful work
 
     foreach ($packages as $package) {
       $srcDir      = $this->getInstallPath ($package);
@@ -76,6 +100,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $fs->symlink ($destPath, $srcDir);
       }
     }
+  }
+
+  protected function getGlobalConfig ()
+  {
+    $globalHome    = $this->composer->getConfig ()->get ('home') . '/composer.json';
+    $globalCfgJson = new JsonFile($globalHome);
+    return $globalCfgJson->exists () ? $globalCfgJson->read () : false;
   }
 
   protected function info ()

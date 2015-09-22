@@ -14,9 +14,17 @@ This is quite useful when you want to:
   - define an authenticated `origin` remote with write permissions only once for each package being developed;
   - register only one VCS directory on your VCS GUI client for each package being developed.
 
-This plugin also supports custom package installation directories, where some packages may use installer plugins that install them to alternative locations (other than the default `vendor` directory).
+#### Features
 
-It also supports customizing the vendor directory location using the `config.vendor-dir` standard Composer setting.
+There are some other Composer plugins with a similar goal of providing this symlinking capability but, at the time of development of this plugin, none had all the features below.
+
+This plugin
+
+- can be installed and configured globally on a development machine, thereby avoiding the need to change the `composer.json` of each project where you want to use it;
+
+- supports custom package installation directories, where some packages may use installer plugins that install them to alternative locations (other than the default `vendor` directory);
+
+- supports customizing the vendor directory location using the `config.vendor-dir` standard Composer setting.
 
 #### Versioning support
 
@@ -32,24 +40,49 @@ If you perform a `composer update` on a project where a shared package has uncom
 
 - PHP version >= 5.4
 - Operating System: Mac OS X or Linux
+- Windows (Vista, Server 2008 or greater) should work but it's not tested
 
 ### Installing
 
-Add `php-kit/composer-shared-packages-plugin` to the `composer.json`'s `require-dev` setting of projects that will use shared packages.
+The **recommended** setup is to **install the plugin globally** and set its configuration also globally. This way you avoid polluting each project's `composer.json` with information relative to this plugin which will be of no use neither to other developers nor to users of those projects.
 
-Run `composer update`
+##### To install globally on your development machine
 
-> In production, this plugin will not be installed and no packages wil be shared if you run `composer install -no-dev`. That is why the plugin name should be added to `required-dev` and not to `require`.
+If it doesn't exist yet, create a `composer.json` file on the composer's configuration folder (usually at `~/.composer`).
+
+> Ex: `~/.composer/composer.json`
+
+Add `php-kit/composer-shared-packages-plugin` to the `composer.json`'s `require` setting.
+
+Run `composer global update` anywhere.
+
+> The plugin will be active for **all** projects on your machine.
+But fear not! No packages will be shared and no project will be affected until you configure it to share **specific** packages.
+
+> Alternatively, you may install the plugin on a project-by-project basis, but configure it globally.
+
+##### To install locally, per project
+
+Add `php-kit/composer-shared-packages-plugin` to the `composer.json`'s `require-dev` setting of those projects that will use shared packages.
+
+Run `composer update` on the project folder.
+
+> On production, this plugin will not be installed and no packages wil be shared if you run `composer install -no-dev`. That is why the plugin name should be added to `required-dev` and not to `require`.
 
 ### Configuring
 
-Add an extra `shared-packages` configuration section to the `composer.json` of each project where you want to use share packages, specifying which packages you want to be shared.
+> From this point on, when mentioning `composer.json`, we mean the global one or the project one, depending on the type of installation you have chosen.
 
-You can specify a list of `vendor/packages` names or glob patterns.
+> The plugin will load both the global configuration (if one exists) and the project configuration (again, if one exists) and merge them.
+Project-specific settings will take precedence over global ones.
 
-If no name or pattern is specified, no packages will be shared.
+Add an extra `shared-packages` configuration section to the `composer.json`.
 
-You should also specify the directory path of the central installation location for shared packages. It can be a relative or absolute path and you can also use `~` as an alias to the user's home directory. The default is `~/shared-packages`.
+On that section, you can specify a `match` setting containing an array of `vendor/packages` names or glob patterns.
+
+> If neither a `match` setting exists, nor a name or pattern are specified, no packages will be shared.
+
+You can also specify a `sharedDir` setting that defines the directory path of the central installation location for shared packages. It can be a relative or absolute path and you can also use `~` as an alias to the user's home directory. The default is `~/shared-packages`.
 
 > These configuration settings only apply to the root `composer.json` of your project. Settings specified on packages will have no effect.
 
@@ -57,28 +90,36 @@ You should also specify the directory path of the central installation location 
 
 #### Example
 
-###### root composer.json
+###### global `composer.json` at `~/.composer`
 
 ```json
-"require-dev": {
-  "php-kit/composer-shared-packages-plugin": "dev-master"
-},
-"extra": {
-  "shared-packages": {
-    "match": [
-      "vendor/package",
-      "vendor/prefix-*"
-      "vendor/package-*-whatever"
-      "vendor/wildcards??"
-      "vendor/*"
-      "*"
-    ],
-    "sharedDir": "~/shared-packages"
+{
+  "require": {
+    "php-kit/composer-shared-packages-plugin": "^1.1"
+  },
+  "extra": {
+    "shared-packages": {
+      "match": [
+        "vendor/package",
+        "vendor/prefix-*",
+        "vendor/package-*-whatever",
+        "vendor/wildcards??",
+        "vendor/*",
+        "*"
+      ],
+      "sharedDir": "~/shared-packages"
+    }
   }
 }
 ```
 
-## License
+### Debugging
+
+You can run Composer in debug mode with the `-vvv` flag to enable the output of information messages, which can be useful for troubleshooting.
+
+Messages output by this plugin will be prefixed with `[shared-packages-plugin]`.
+
+### License
 
 This library is open-source software licensed under the [MIT license](http://opensource.org/licenses/MIT).
 
