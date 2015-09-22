@@ -52,10 +52,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
   public function onPostUpdate (Event $event)
   {
-    // Load plugin configuration
+    // Load global plugin configuration
 
     $globalCfg = $this->getGlobalConfig ();
-
     if ($globalCfg) {
       $extra    = self::get ($globalCfg, 'extra', []);
       $myConfig = self::get ($extra, self::EXTRA_KEY, []);
@@ -63,8 +62,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $this->info ("Loaded global configuration");
     }
     else $myConfig = [];
-    $projCfg  = self::get ($this->composer->getPackage ()->getExtra (), self::EXTRA_KEY, []);
-    $myConfig = array_merge_recursive ($myConfig, $projCfg);
+
+    // Merge project-specific configuration.
+    // Ignore it if Composer is running in global mode.
+
+    $package = $this->composer->getPackage ();
+    if ($package->getName () != '__root__') {
+      $projCfg  = self::get ($package->getExtra (), self::EXTRA_KEY, []);
+      $myConfig = array_merge_recursive ($myConfig, $projCfg);
+    }
 
     // Setup
 
