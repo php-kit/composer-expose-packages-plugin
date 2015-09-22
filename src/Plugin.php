@@ -11,19 +11,6 @@ use Composer\Script\Event;
 use Composer\Util\Filesystem as FilesystemUtil;
 use Symfony\Component\Filesystem\Filesystem;
 
-function get (array $a = null, $k, $def = null)
-{
-  return isset($a[$k]) ? $a[$k] : $def;
-}
-
-function globMatchAny (array $rules, $target)
-{
-  foreach ($rules as $rule)
-    if (fnmatch ($rule, $target))
-      return true;
-  return false;
-}
-
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
   const DEFAULT_SHARED_DIR = '~/shared-packages';
@@ -39,13 +26,22 @@ class Plugin implements PluginInterface, EventSubscriberInterface
   public static function getSubscribedEvents ()
   {
     return [
-      'post-install-cmd' => [
-        ['onPostUpdate', 0],
-      ],
-      'post-update-cmd'  => [
-        ['onPostUpdate', 0],
-      ],
+      'post-install-cmd' => [['onPostUpdate', 0]],
+      'post-update-cmd'  => [['onPostUpdate', 0]],
     ];
+  }
+
+  private static function get (array $a = null, $k, $def = null)
+  {
+    return isset($a[$k]) ? $a[$k] : $def;
+  }
+
+  private static function globMatchAny (array $rules, $target)
+  {
+    foreach ($rules as $rule)
+      if (fnmatch ($rule, $target))
+        return true;
+    return false;
   }
 
   public function activate (Composer $composer, IOInterface $io)
@@ -61,19 +57,20 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     $globalCfg = $this->getGlobalConfig ();
 
     if ($globalCfg) {
-      $extra    = get ($globalCfg, 'extra', []);
-      $myConfig = get ($extra, self::EXTRA_KEY, []);
+      $extra    = self::get ($globalCfg, 'extra', []);
+      $myConfig = self::get ($extra, self::EXTRA_KEY, []);
       if ($myConfig)
         $this->info ("Loaded global configuration");
     }
     else $myConfig = [];
-    $projCfg  = get ($this->composer->getPackage ()->getExtra (), self::EXTRA_KEY, []);
+    $projCfg  = self::get ($this->composer->getPackage ()->getExtra (), self::EXTRA_KEY, []);
     $myConfig = array_merge_recursive ($myConfig, $projCfg);
 
     // Setup
 
-    $rules     = array_unique (get ($myConfig, self::RULES_KEY, []));
-    $sharedDir = str_replace ('~', getenv ('HOME'), get ($myConfig, self::SHARED_DIR_KEY, self::DEFAULT_SHARED_DIR));
+    $rules     = array_unique (self::get ($myConfig, self::RULES_KEY, []));
+    $sharedDir =
+      str_replace ('~', getenv ('HOME'), self::get ($myConfig, self::SHARED_DIR_KEY, self::DEFAULT_SHARED_DIR));
     $packages  = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
     $rulesInfo = implode (', ', $rules);
     $this->info ("Shared directory: <info>$sharedDir</info>");
@@ -87,7 +84,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     foreach ($packages as $package) {
       $srcDir      = $this->getInstallPath ($package);
       $packageName = $package->getName ();
-      if (globMatchAny ($rules, $packageName) && !$fsUtil->isSymlinkedDirectory ($srcDir)) {
+      if (self::globMatchAny ($rules, $packageName) && !$fsUtil->isSymlinkedDirectory ($srcDir)) {
         $destPath = "$sharedDir/$packageName";
         if (!file_exists ($destPath)) {
           $fsUtil->copyThenRemove ($srcDir, $destPath);
