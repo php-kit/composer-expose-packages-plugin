@@ -6,14 +6,17 @@ use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
 use Composer\Json\JsonFile;
 use Composer\Package\PackageInterface;
-use Composer\Plugin\CommandEvent;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Util\Filesystem as FilesystemUtil;
+use PhpKit\ComposerSharedPackagesPlugin\Util\ExtIO;
+use PhpKit\ComposerSharedPackagesPlugin\Util\PluginArguments;
 use Symfony\Component\Filesystem\Filesystem;
 
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
+  use PluginArguments, ExtIO;
+
   const DEFAULT_SHARED_DIR = '~/shared-packages';
   const EXTRA_KEY          = 'shared-packages';
   const RULES_KEY          = 'match';
@@ -27,15 +30,14 @@ class Plugin implements PluginInterface, EventSubscriberInterface
   protected $composer;
   /** @var IOInterface */
   protected $io;
-  protected $lead          = "<comment>[shared-packages-plugin]</comment>";
-  protected $optionRefresh = false;
+  protected $refreshOption = false;
 
   public static function getSubscribedEvents ()
   {
     return [
       'post-install-cmd' => [['onPostUpdate', 0]],
       'post-update-cmd'  => [['onPostUpdate', 0]],
-      'command'          => [['onCommand', 0]],
+      'command'          => [['parsePluginArguments', 0]],
     ];
   }
 
@@ -56,29 +58,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
   {
     $this->composer = $composer;
     $this->io       = $io;
-  }
-
-  public function onCommand (CommandEvent $event)
-  {
-    $name = $event->getCommandName ();
-    if ($name == 'update' || $name == 'install') {
-      $args    = $event->getInput ()->getArgument ('packages');
-      $newArgs = [];
-      foreach ($args as $arg) {
-        $argName = substr ($arg, 1);
-        if ($arg[0] == '@') {
-          if (isset(self::$AVAILABLE_OPTIONS[$argName])) {
-            $op        = 'option' . ucfirst ($argName);
-            $this->$op = true;
-            $this->info (self::$AVAILABLE_OPTIONS[$argName] . " <info>enabled</info>");
-          }
-          else throw new \RuntimeException("Plugin argument $arg is not valid");
-        }
-        else $newArgs[] = $arg;
-      }
-      if ($newArgs != $args)
-        $event->getInput ()->setArgument ('packages', $newArgs);
-    }
   }
 
   public function onPostUpdate (Event $event)
@@ -141,31 +120,40 @@ class Plugin implements PluginInterface, EventSubscriberInterface
       $this->info ("No packages matched");
   }
 
+  protected function args_getFriendlyName ($argName)
+  {
+    return self::get (self::$AVAILABLE_OPTIONS, $argName);
+  }
+
+  protected function args_getPrefix ()
+  {
+    return 'shared';
+  }
+
+  protected function args_set ($name, $value)
+  {
+    if (isset(self::$AVAILABLE_OPTIONS[$name])) {
+      $this->{$name . 'Option'} = $value;
+      return true;
+    }
+    return false;
+  }
+
+  protected function io ()
+  {
+    return $this->io;
+  }
+
+  protected function ioLead ()
+  {
+    return "<comment>[shared-packages-plugin]</comment>";
+  }
+
   protected function getGlobalConfig ()
   {
     $globalHome    = $this->composer->getConfig ()->get ('home') . '/composer.json';
     $globalCfgJson = new JsonFile($globalHome);
     return $globalCfgJson->exists () ? $globalCfgJson->read () : false;
-  }
-
-  protected function info ()
-  {
-    if ($this->io->isDebug ())
-      call_user_func_array ([$this, 'write'], func_get_args ());
-  }
-
-  protected function write ()
-  {
-    foreach (func_get_args () as $msg) {
-      $lines = explode (PHP_EOL, $msg);
-      if ($lines) {
-        $this->io->write ("$this->lead " . array_shift ($lines));
-        if ($lines) {
-          $msg = implode (PHP_EOL . '    ', $lines);
-          $this->io->write ("    $msg");
-        }
-      }
-    }
   }
 
   private function getInstallPath (PackageInterface $package)
