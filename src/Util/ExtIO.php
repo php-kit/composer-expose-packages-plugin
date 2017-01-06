@@ -7,7 +7,7 @@ trait ExtIO
 
   protected function info ()
   {
-    if ($this->io ()->isDebug ())
+    if ($this->io ()->isVerbose())
       call_user_func_array ([$this, 'write'], func_get_args ());
     return $this;
   }

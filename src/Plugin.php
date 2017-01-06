@@ -13,6 +13,12 @@ use PhpKit\ComposerSharedPackagesPlugin\Util\ExtIO;
 use PhpKit\ComposerSharedPackagesPlugin\Util\PluginArguments;
 use Symfony\Component\Filesystem\Filesystem;
 
+/**
+ * Supported command-line options:
+ * - shared:refresh - boolean - Force Refresh Mode.<br>
+ *   When true, packages (re)installed by Composer will overwrite the shared (symlinked) packages, allowing them to be
+ *   synchronized to the project's required version. The package's git repo's configuration is preserved.
+ */
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
   use PluginArguments, ExtIO;
@@ -109,6 +115,19 @@ class Plugin implements PluginInterface, EventSubscriberInterface
           $this->info ("Moved <info>$packageName</info> to shared directory and symlinked to it");
         }
         else {
+          if ($this->refreshOption) {
+            $cfg = @file_get_contents("$destPath/.git/config");
+            if ($cfg === false)
+              throw new \RuntimeException("Shared package <fg=cyan;bg=red>$packageName</> has no git repo");
+            if (!file_exists("$srcDir/.git")) {
+              $this->info ("Skipped update of <info>$packageName</info> because the project's package has no git repo");
+            }
+            else {
+              $fsUtil->copyThenRemove ($srcDir, $destPath);
+              file_put_contents ("$destPath/.git/config", $cfg);
+              $this->info ("Updated <info>$packageName</info>'s shared directory");
+            }
+          }
           $fs->remove ($srcDir);
           $this->info ("Symlinked to existing <info>$packageName</info> on shared directory");
         }
