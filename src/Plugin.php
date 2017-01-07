@@ -84,17 +84,18 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         if (!file_exists ($sharedPath)) {
           $fsUtil->copyThenRemove ($packagePath, $sharedPath);
           $fs->symlink ($sharedPath, $packagePath);
-          $this->info ("\tInstalled on shared directory. The project symlinks to it");
+          $this->info ("Installed on shared directory. The project symlinks to it");
         }
         else {
           // The shared package already exists, so update it to match the installed one.
           if (!file_exists ("$packagePath/.git"))
-            $this->info ("\tCan't link to the shared package; the project's package has no git repo");
+            $this->info ("Can't link to the shared package; the project's package has no git repo");
           else {
             $this->removeDir ($sharedPath);
-            $fsUtil->copyThenRemove ($packagePath, $sharedPath);
+            if (@!rename ($packagePath, $sharedPath))
+              throw new \RuntimeException("Couldn't move the package to the shared directory <fg=cyan;bg=red>$sharedPath</>");
             $fs->symlink ($sharedPath, $packagePath);
-            $this->info ("\tUpdated the shared directory and symlinked to it");
+            $this->info ("Updated the shared directory and symlinked to it");
           }
         }
       }
@@ -118,6 +119,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
         // copy the shared package to the vendor dir, so that it may be updated by Composer
         $this->info ("Copying shared package <info>$packageName</info> to project");
+        // We keep the original shared package, in case something goes wrong further ahead
         $fs->mirror ($sharedPath, $packagePath);
       }
     });
