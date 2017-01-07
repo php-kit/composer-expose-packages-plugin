@@ -77,7 +77,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
       $fsUtil = new FilesystemUtil;
       $fs     = new Filesystem();
 
-      if (!$fsUtil->isSymlinkedDirectory ($packagePath)) { // Sanity check (should not occur)
+      if ($fsUtil->isSymlinkedDirectory ($packagePath))
+        $this->info ("Skipped package <info>$packageName</info> (already symlinked)");
+      else {
         $this->info ("Handling package <info>$packageName</info>");
         if (!file_exists ($sharedPath)) {
           $fsUtil->copyThenRemove ($packagePath, $sharedPath);
@@ -89,9 +91,10 @@ class Plugin implements PluginInterface, EventSubscriberInterface
           if (!file_exists ("$packagePath/.git"))
             $this->info ("\tCan't link to the shared package; the project's package has no git repo");
           else {
+            $this->removeDir ($sharedPath);
             $fsUtil->copyThenRemove ($packagePath, $sharedPath);
             $fs->symlink ($sharedPath, $packagePath);
-            $this->info ("\tUpdated the shared directory");
+            $this->info ("\tUpdated the shared directory and symlinked to it");
           }
         }
       }
@@ -106,10 +109,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface
       $fsUtil = new FilesystemUtil;
       $fs     = new Filesystem();
 
-      if ($fsUtil->isSymlinkedDirectory ($packagePath)) {
-        $this->info ("Preparing shared package <info>$packageName</info> for possible update");
-        // remove the symlink and copy the shared package to the vendor dir, so that it may be updated by Composer
-        $fsUtil->unlink ($packagePath);
+      if (file_exists ($sharedPath)) {
+
+        if (file_exists ($packagePath)) {
+          if ($fsUtil->isSymlinkedDirectory ($packagePath))
+            $fsUtil->unlink ($packagePath);
+          else $this->removeDir ($packagePath);
+        }
+        // copy the shared package to the vendor dir, so that it may be updated by Composer
+        $this->info ("Copying shared package <info>$packageName</info> to project");
         $fs->mirror ($sharedPath, $packagePath);
       }
     });
@@ -211,6 +219,25 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     }
     if (!$count)
       $this->info ("No packages matched");
+  }
+
+  /**
+   * Remove a directory, even if some files in it are undeletable.
+   *
+   * @param string $path
+   */
+  private function removeDir ($path)
+  {
+    $tmp = sys_get_temp_dir () . '/' . uniqid ();
+    if (@!rename ($path, $tmp))
+      throw new \RuntimeException("Couldn't remove directory <fg=cyan;bg=red>$path</>");
+    $fsUtil = new FilesystemUtil;
+    try {
+      $fsUtil->removeDirectory ($tmp);
+    }
+    catch (\RuntimeException $e) {
+      $this->info ("Couldn't remove temporary directory <info>$tmp</info>");
+    }
   }
 
 }
