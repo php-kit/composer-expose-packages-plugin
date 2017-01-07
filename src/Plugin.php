@@ -21,28 +21,31 @@ use Symfony\Component\Filesystem\Filesystem;
  */
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
-  use PluginArguments, ExtIO;
-
   const DEFAULT_SHARED_DIR = '~/shared-packages';
-  const EXTRA_KEY          = 'shared-packages';
-  const RULES_KEY          = 'match';
-  const SHARED_DIR_KEY     = 'sharedDir';
-
+  use PluginArguments, ExtIO;
+  const EXTRA_KEY      = 'shared-packages';
+  const RULES_KEY      = 'match';
+  const SHARED_DIR_KEY = 'sharedDir';
   protected static $AVAILABLE_OPTIONS = [
     'refresh' => 'Force refresh mode',
   ];
-
   /** @var Composer */
   protected $composer;
   /** @var IOInterface */
   protected $io;
   protected $refreshOption = false;
+  /** @var PackageInterface[] */
+  private $packages;
+  /** @var string[] */
+  private $rules;
+  private $sharedDir;
 
   public static function getSubscribedEvents ()
   {
     return [
       'post-install-cmd' => [['onPostUpdate', 0]],
       'post-update-cmd'  => [['onPostUpdate', 0]],
+      'pre-update-cmd'   => [['onPreUpdate', 0]],
       'command'          => [['parsePluginArguments', 0]],
     ];
   }
@@ -68,6 +71,81 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
   public function onPostUpdate (Event $event)
   {
+    $this->init ();
+
+    $this->iteratePackages (function ($package, $packageName, $packagePath, $sharedPath) {
+      $fsUtil = new FilesystemUtil;
+      $fs     = new Filesystem();
+
+      if (!$fsUtil->isSymlinkedDirectory ($packagePath)) { // Sanity check (should not occur)
+        $this->info ("Handling package <info>$packageName</info>");
+        if (!file_exists ($sharedPath)) {
+          $fsUtil->copyThenRemove ($packagePath, $sharedPath);
+          $fs->symlink ($sharedPath, $packagePath);
+          $this->info ("\tInstalled on shared directory. The project symlinks to it");
+        }
+        else {
+          // The shared package already exists, so update it to match the installed one.
+          if (!file_exists ("$packagePath/.git"))
+            $this->info ("\tCan't link to the shared package; the project's package has no git repo");
+          else {
+            $fsUtil->copyThenRemove ($packagePath, $sharedPath);
+            $fs->symlink ($sharedPath, $packagePath);
+            $this->info ("\tUpdated the shared directory");
+          }
+        }
+      }
+    });
+  }
+
+  public function onPreUpdate (Event $event)
+  {
+    $this->init ();
+
+    $this->iteratePackages (function ($package, $packageName, $packagePath, $sharedPath) {
+      $fsUtil = new FilesystemUtil;
+      $fs     = new Filesystem();
+
+      if ($fsUtil->isSymlinkedDirectory ($packagePath)) {
+        $this->info ("Preparing shared package <info>$packageName</info> for possible update");
+        // remove the symlink and copy the shared package to the vendor dir, so that it may be updated by Composer
+        $fsUtil->unlink ($packagePath);
+        $fs->mirror ($sharedPath, $packagePath);
+      }
+    });
+  }
+
+  protected function args_getFriendlyName ($argName)
+  {
+    return self::get (self::$AVAILABLE_OPTIONS, $argName);
+  }
+
+  protected function args_getPrefix ()
+  {
+    return 'shared';
+  }
+
+  protected function args_set ($name, $value)
+  {
+    if (isset(self::$AVAILABLE_OPTIONS[$name])) {
+      $this->{$name . 'Option'} = $value;
+      return true;
+    }
+    return false;
+  }
+
+  protected function getGlobalConfig ()
+  {
+    $globalHome    = $this->composer->getConfig ()->get ('home') . '/composer.json';
+    $globalCfgJson = new JsonFile($globalHome);
+    return $globalCfgJson->exists () ? $globalCfgJson->read () : false;
+  }
+
+  protected function init ()
+  {
+    if (isset($this->packages))
+      return;
+
     // Load global plugin configuration
 
     $globalCfg = $this->getGlobalConfig ();
@@ -91,71 +169,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     // Setup
 
-    $rules     = array_unique (self::get ($myConfig, self::RULES_KEY, []));
-    $sharedDir =
+    $this->rules     = array_unique (self::get ($myConfig, self::RULES_KEY, []));
+    $this->sharedDir =
       str_replace ('~', getenv ('HOME'), self::get ($myConfig, self::SHARED_DIR_KEY, self::DEFAULT_SHARED_DIR));
-    $packages  = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
-    $rulesInfo = implode (', ', $rules);
-    $this->info ("Shared directory: <info>$sharedDir</info>");
+    $packages        = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
+    $rulesInfo       = implode (', ', $this->rules);
+    $this->info ("Shared directory: <info>$this->sharedDir</info>");
     $this->info ("Match packages: <info>$rulesInfo</info>");
 
-    $fsUtil = new FilesystemUtil;
-    $fs     = new Filesystem();
-
-    // Do useful work
-
-    $count = 0;
-    foreach ($packages as $package) {
-      $srcDir      = $this->getInstallPath ($package);
-      $packageName = $package->getName ();
-      if (self::globMatchAny ($rules, $packageName) && !$fsUtil->isSymlinkedDirectory ($srcDir)) {
-        $destPath = "$sharedDir/$packageName";
-        if (!file_exists ($destPath)) {
-          $fsUtil->copyThenRemove ($srcDir, $destPath);
-          $this->info ("Moved <info>$packageName</info> to shared directory and symlinked to it");
-        }
-        else {
-          if ($this->refreshOption) {
-            $cfg = @file_get_contents("$destPath/.git/config");
-            if ($cfg === false)
-              throw new \RuntimeException("Shared package <fg=cyan;bg=red>$packageName</> has no git repo");
-            if (!file_exists("$srcDir/.git")) {
-              $this->info ("Skipped update of <info>$packageName</info> because the project's package has no git repo");
-            }
-            else {
-              $fsUtil->copyThenRemove ($srcDir, $destPath);
-              file_put_contents ("$destPath/.git/config", $cfg);
-              $this->info ("Updated <info>$packageName</info>'s shared directory");
-            }
-          }
-          $fs->remove ($srcDir);
-          $this->info ("Symlinked to existing <info>$packageName</info> on shared directory");
-        }
-        $fs->symlink ($destPath, $srcDir);
-        ++$count;
-      }
-    }
-    if (!$count)
-      $this->info ("No packages matched");
-  }
-
-  protected function args_getFriendlyName ($argName)
-  {
-    return self::get (self::$AVAILABLE_OPTIONS, $argName);
-  }
-
-  protected function args_getPrefix ()
-  {
-    return 'shared';
-  }
-
-  protected function args_set ($name, $value)
-  {
-    if (isset(self::$AVAILABLE_OPTIONS[$name])) {
-      $this->{$name . 'Option'} = $value;
-      return true;
-    }
-    return false;
+    $this->packages = $packages;
   }
 
   protected function io ()
@@ -168,16 +190,27 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     return "<comment>[shared-packages-plugin]</comment>";
   }
 
-  protected function getGlobalConfig ()
-  {
-    $globalHome    = $this->composer->getConfig ()->get ('home') . '/composer.json';
-    $globalCfgJson = new JsonFile($globalHome);
-    return $globalCfgJson->exists () ? $globalCfgJson->read () : false;
-  }
-
   private function getInstallPath (PackageInterface $package)
   {
     return $this->composer->getInstallationManager ()->getInstallPath ($package);
+  }
+
+  private function iteratePackages (callable $callback)
+  {
+    $count = 0;
+    foreach ($this->packages as $package) {
+      $packagePath = $this->getInstallPath ($package);
+      $packageName = $package->getName ();
+      if (self::globMatchAny ($this->rules, $packageName)) {
+        // packagePath is the installed package's path
+        // sharedPath is the shared package's path
+        $sharedPath = "$this->sharedDir/$packageName";
+        $callback($package, $packageName, $packagePath, $sharedPath);
+        ++$count;
+      }
+    }
+    if (!$count)
+      $this->info ("No packages matched");
   }
 
 }
