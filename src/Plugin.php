@@ -57,7 +57,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
   public function getCommands ()
   {
-    return [new EditOriginalCommand];
+    return [new OriginalCommand];
   }
 
   public function onPostUpdate (Event $event)

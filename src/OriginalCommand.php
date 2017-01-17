@@ -12,7 +12,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use function PhpKit\ComposerSharedPackagesPlugin\Util\shortenPath;
 
-class EditOriginalCommand extends BaseCommand
+class OriginalCommand extends BaseCommand
 {
   use CommonAPI;
 
@@ -24,7 +24,7 @@ class EditOriginalCommand extends BaseCommand
   protected function configure ()
   {
     $this->setName ('original');
-    $this->setDescription ('Symlinks all shared package folders to the corresponding source package directories');
+    $this->setDescription ('Symlinks all shared package folders to the corresponding source package directories.');
   }
 
   protected function execute (InputInterface $input, OutputInterface $output)
