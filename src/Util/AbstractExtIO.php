@@ -1,5 +1,7 @@
 <?php
-namespace PhpKit\ComposerSharedPackagesPlugin\Util;
+
+namespace PhpKit\ComposerExposedPackagesPlugin\Util;
+
 use Composer\IO\IOInterface;
 
 trait AbstractExtIO

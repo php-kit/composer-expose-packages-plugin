@@ -1,6 +1,6 @@
 {
   "name": "php-kit/composer-shared-packages-plugin",
-  "description": "Makes package development easier by sharing them between projects",
+  "description": "Makes package development easier by exposing them on a single place from many projects",
   "type": "composer-plugin",
   "keywords": [
     "composer",
@@ -24,14 +24,14 @@
     "composer-plugin-api": "^1.0"
   },
   "require-dev": {
-    "composer/composer": "dev-master"
+    "composer/composer": "^1.3"
   },
   "extra": {
-    "class": "PhpKit\\ComposerSharedPackagesPlugin\\Plugin"
+    "class": "PhpKit\\ComposerExposedPackagesPlugin\\Plugin"
   },
   "autoload": {
     "psr-4": {
-      "PhpKit\\ComposerSharedPackagesPlugin\\": "src"
+      "PhpKit\\ComposerExposedPackagesPlugin\\": "src"
     }
   }
 }

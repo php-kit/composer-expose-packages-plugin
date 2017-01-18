@@ -1,5 +1,6 @@
 <?php
-namespace PhpKit\ComposerSharedPackagesPlugin\Util;
+
+namespace PhpKit\ComposerExposedPackagesPlugin\Util;
 
 use Composer\Plugin\CommandEvent;
 

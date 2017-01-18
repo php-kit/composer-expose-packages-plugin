@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpKit\ComposerSharedPackagesPlugin\Util;
+namespace PhpKit\ComposerExposedPackagesPlugin\Util;
 
 function get (array $a = null, $k, $def = null)
 {
@@ -10,6 +10,11 @@ function get (array $a = null, $k, $def = null)
 function shortenPath ($path)
 {
   return str_replace (getenv ('HOME'), '~', $path);
+}
+
+function toRelativePath ($path)
+{
+  return str_replace (getcwd() . '/', '', $path);
 }
 
 function expandPath ($path)

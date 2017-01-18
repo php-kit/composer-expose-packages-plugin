@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpKit\ComposerSharedPackagesPlugin\Util;
+namespace PhpKit\ComposerExposedPackagesPlugin\Util;
 
 trait ExtIO
 {

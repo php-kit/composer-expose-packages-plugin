@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpKit\ComposerSharedPackagesPlugin;
+namespace PhpKit\ComposerExposedPackagesPlugin;
 
 require "Util/util.php";
 
@@ -15,16 +15,10 @@ use Composer\Plugin\Capable;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Util\Filesystem as FilesystemUtil;
-use PhpKit\ComposerSharedPackagesPlugin\Util\CommonAPI;
+use PhpKit\ComposerExposedPackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Filesystem\Filesystem;
-use function PhpKit\ComposerSharedPackagesPlugin\Util\shortenPath;
+use function PhpKit\ComposerExposedPackagesPlugin\Util\shortenPath;
 
-/**
- * Supported command-line options:
- * - shared:refresh - boolean - Force Refresh Mode.<br>
- *   When true, packages (re)installed by Composer will overwrite the shared (symlinked) packages, allowing them to be
- *   synchronized to the project's required version. The package's git repo's configuration is preserved.
- */
 class Plugin implements PluginInterface, EventSubscriberInterface, Capable, CommandProvider
 {
   use CommonAPI;
@@ -65,7 +59,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
   public function getCommands ()
   {
-    return [new OriginalCommand];
+    return [new ExposeCommand, new OriginalCommand, new StatusCommand()];
   }
 
   public function onFinish (Event $event)
@@ -107,7 +101,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
       $name        = $package->getName ();
       $packagePath = $this->getInstallPath ($package);
-      $sharedPath  = "$this->sharedDir/$name";
+      $exposurePath  = "$this->exposureDir/$name";
       $sourcePath  = "$this->sourceDir/$name";
 
       // Install source repository if it was not installed.
@@ -125,13 +119,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
           shortenPath ($sourcePath)));
       }
 
-      // Symlink shared directory.
-      if (!$fs->exists ($sharedPath) && !$fsUtil->isSymlinkedDirectory ($sharedPath))
-        $this->tail ("<error>Directory $sharedPath already exists and it will not be replaced by a symlink</error>");
+      // Symlink exposure directory.
+      if (!$fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath))
+        $this->tail ("<error>Directory $exposurePath already exists and it will not be replaced by a symlink</error>");
       else {
-        $fsUtil->ensureDirectoryExists (dirname ($sharedPath));
-        $fs->symlink ($packagePath, $sharedPath);
-        $this->report[] = [shortenPath ($sharedPath), $name];
+        $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
+        $fs->symlink ($packagePath, $exposurePath);
+        $this->report[] = [shortenPath ($exposurePath), $name];
       }
     }
   }

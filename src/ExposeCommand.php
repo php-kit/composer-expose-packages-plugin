@@ -11,8 +11,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use function PhpKit\ComposerExposedPackagesPlugin\Util\shortenPath;
+use function PhpKit\ComposerExposedPackagesPlugin\Util\toRelativePath;
 
-class OriginalCommand extends BaseCommand
+class ExposeCommand extends BaseCommand
 {
   use CommonAPI;
 
@@ -23,8 +24,18 @@ class OriginalCommand extends BaseCommand
 
   protected function configure ()
   {
-    $this->setName ('expose-original');
-    $this->setDescription ('Retargets exposed package symlinks to the original repositories on the source directory.');
+    $description = 'Reexposes for development all exposable packages on the current project.';
+    $this->setName ('expose');
+    $this->setDescription ($description);
+    $this->setHelp ("$description
+
+Each exposable package will be:
+ - symlinked from the junction directory;
+ - copied to the source directory if it's not already there.
+ 
+This command is intended for reexposing packages that were recently exposed on another project.
+When you run <info>composer install</info> or <info>composer update</info> you will fully expose packages for development, including the installation of package source repositories, which this command does not perform.
+");
   }
 
   protected function execute (InputInterface $input, OutputInterface $output)
@@ -42,9 +53,9 @@ class OriginalCommand extends BaseCommand
         throw new \RuntimeException("Directory $exposurePath already exists and I won't replace it by a symlink");
 
       $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
-      $fs->symlink ($sourcePath, $exposurePath);
+      $fs->symlink ($packagePath, $exposurePath);
 
-      $o[] = [shortenPath ($exposurePath), shortenPath ($sourcePath)];
+      $o[] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
 
     });
 

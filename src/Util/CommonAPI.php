@@ -1,13 +1,12 @@
 <?php
 
-namespace PhpKit\ComposerSharedPackagesPlugin\Util;
+namespace PhpKit\ComposerExposedPackagesPlugin\Util;
 
 use Composer\Composer;
 use Composer\Json\JsonFile;
 use Composer\Package\PackageInterface;
 use Composer\Package\RootPackage;
 use Composer\Util\Filesystem as FilesystemUtil;
-use Symfony\Component\Console\Application;
 
 /**
  * @property Composer $composer
@@ -16,23 +15,19 @@ trait CommonAPI
 {
   use ExtIO;
 
-  static $DEFAULT_SHARED_DIR = '~/shared-packages';
-  static $DEFAULT_SOURCE_DIR = '~/original-packages';
-  static $EXTRA_KEY          = 'shared-packages';
-  static $RULES_KEY          = 'match';
-  static $SHARED_DIR_KEY     = 'sharedDir';
-  static $SOURCE_DIR_KEY     = 'sourceDir';
-//  protected static $AVAILABLE_OPTIONS = [
-//    'refresh' => 'Force refresh mode',
-//  ];
-
+  static $DEFAULT_EXPOSURE_DIR = '~/exposed-packages';
+  static $DEFAULT_SOURCE_DIR   = '~/original-packages';
+  static $EXPOSURE_DIR_KEY     = 'exposureDir';
+  static $EXTRA_KEY            = 'exposed-packages';
+  static $RULES_KEY            = 'match';
+  static $SOURCE_DIR_KEY       = 'sourceDir';
+  /** @var string */
+  private $exposureDir;
   /** @var PackageInterface[] */
   private $packages;
   /** @var string[] */
   private $rules;
-  /** @var string */
-  private $sharedDir;
-  /** @var string The path to a directory that will hold a master copy of all shared repositoories */
+  /** @var string The path to a directory that will hold a master copy of all exposed repositories */
   private $sourceDir;
 
   protected function getGlobalConfig ()
@@ -79,13 +74,13 @@ trait CommonAPI
 
     // Setup
 
-    $this->rules     = array_unique (get ($myConfig, self::$RULES_KEY, []));
-    $this->sharedDir = expandPath (get ($myConfig, self::$SHARED_DIR_KEY, self::$DEFAULT_SHARED_DIR));
-    $this->sourceDir = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
-    $this->packages  = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
+    $this->rules       = array_unique (get ($myConfig, self::$RULES_KEY, []));
+    $this->exposureDir = expandPath (get ($myConfig, self::$EXPOSURE_DIR_KEY, self::$DEFAULT_EXPOSURE_DIR));
+    $this->sourceDir   = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
+    $this->packages    = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
 
-    $rulesInfo       = implode (', ', $this->rules);
-    $this->info ($msg . "Shared directory: <info>$this->sharedDir</info>
+    $rulesInfo = implode (', ', $this->rules);
+    $this->info ($msg . "Exposure directory: <info>$this->exposureDir</info>
 Source directory: <info>$this->sourceDir</info>
 Match packages: <info>$rulesInfo</info>");
   }
@@ -97,21 +92,26 @@ Match packages: <info>$rulesInfo</info>");
 
   protected function ioLead ()
   {
-    return "<comment>[shared-packages-plugin]</comment>";
+    return "<comment>[expose-packages-plugin]</comment>";
   }
 
   protected function iteratePackages (callable $callback)
   {
-    $count = 0;
+    $o = [];
     foreach ($this->packages as $package)
+      $o[$package->getName()] = $package;
+    ksort ($o);
+
+    $count = 0;
+    foreach ($o as $package)
       if ($this->packageIsEligible ($package)) {
         $packagePath = toAbsolutePath ($this->getInstallPath ($package));
         $packageName = $package->getName ();
         // packagePath is the installed package's path
-        // sharedPath is the shared package's path
-        $sharedPath = "$this->sharedDir/$packageName";
-        $sourcePath = "$this->sourceDir/$packageName";
-        $callback($package, $packageName, $packagePath, $sharedPath, $sourcePath);
+        // exposurePath is the exposure package's path
+        $exposurePath = "$this->exposureDir/$packageName";
+        $sourcePath   = "$this->sourceDir/$packageName";
+        $callback($package, $packageName, $packagePath, $exposurePath, $sourcePath);
         ++$count;
       }
     if (!$count)
