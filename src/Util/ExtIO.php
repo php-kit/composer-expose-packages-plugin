@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpKit\ComposerExposedPackagesPlugin\Util;
+namespace PhpKit\ComposerExposePackagesPlugin\Util;
 
 trait ExtIO
 {
@@ -19,8 +19,8 @@ trait ExtIO
       $lines = explode (PHP_EOL, $msg);
       if ($lines) {
         $this->io ()->write ($this->IOLead ());
-        $msg = implode (PHP_EOL . '    ', $lines);
-        $this->io ()->write ("    $msg");
+        $msg = implode (PHP_EOL . '  ', $lines);
+        $this->io ()->write ("  $msg");
       }
     }
     return $this;

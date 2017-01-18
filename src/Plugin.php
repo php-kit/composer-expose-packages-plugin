@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpKit\ComposerExposedPackagesPlugin;
+namespace PhpKit\ComposerExposePackagesPlugin;
 
 require "Util/util.php";
 
@@ -15,10 +15,10 @@ use Composer\Plugin\Capable;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Util\Filesystem as FilesystemUtil;
-use PhpKit\ComposerExposedPackagesPlugin\Util\CommonAPI;
+use PhpKit\ComposerExposePackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Filesystem\Filesystem;
-use function PhpKit\ComposerExposedPackagesPlugin\Util\shortenPath;
-use function PhpKit\ComposerExposedPackagesPlugin\Util\toRelativePath;
+use function PhpKit\ComposerExposePackagesPlugin\Util\shortenPath;
+use function PhpKit\ComposerExposePackagesPlugin\Util\toRelativePath;
 
 class Plugin implements PluginInterface, EventSubscriberInterface, Capable, CommandProvider
 {
@@ -123,7 +123,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
       // Symlink exposure directory.
       if ($fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath))
-        $this->tail ("<error>Directory $exposurePath already exists and it will not be replaced by a symlink</error>");
+        $this->tail ("<error>File/directory $exposurePath already exists and it will not be replaced by a symlink</error>");
       else {
         $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
         $fs->symlink ($packagePath, $exposurePath);

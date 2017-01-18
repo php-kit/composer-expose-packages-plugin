@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpKit\ComposerExposedPackagesPlugin\Util;
+namespace PhpKit\ComposerExposePackagesPlugin\Util;
 
 function get (array $a = null, $k, $def = null)
 {

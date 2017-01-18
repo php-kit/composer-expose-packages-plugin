@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpKit\ComposerExposedPackagesPlugin\Util;
+namespace PhpKit\ComposerExposePackagesPlugin\Util;
 
 use Composer\Composer;
 use Composer\Json\JsonFile;

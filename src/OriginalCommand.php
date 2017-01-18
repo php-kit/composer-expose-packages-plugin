@@ -1,16 +1,16 @@
 <?php
 
-namespace PhpKit\ComposerExposedPackagesPlugin;
+namespace PhpKit\ComposerExposePackagesPlugin;
 
 use Composer\Command\BaseCommand;
 use Composer\Composer;
 use Composer\IO\IOInterface;
 use Composer\Util\Filesystem as FilesystemUtil;
-use PhpKit\ComposerExposedPackagesPlugin\Util\CommonAPI;
+use PhpKit\ComposerExposePackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
-use function PhpKit\ComposerExposedPackagesPlugin\Util\shortenPath;
+use function PhpKit\ComposerExposePackagesPlugin\Util\shortenPath;
 
 class OriginalCommand extends BaseCommand
 {
@@ -39,13 +39,13 @@ class OriginalCommand extends BaseCommand
       $fs     = new Filesystem();
 
       if ($fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath))
-        throw new \RuntimeException("Directory $exposurePath already exists and I won't replace it by a symlink");
+        $this->info ("<error>File/directory $exposurePath already exists and it will not be replaced by a symlink</error>");
+      else {
+        $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
+        $fs->symlink ($sourcePath, $exposurePath);
 
-      $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
-      $fs->symlink ($sourcePath, $exposurePath);
-
-      $o[] = [shortenPath ($exposurePath), shortenPath ($sourcePath)];
-
+        $o[] = [shortenPath ($exposurePath), shortenPath ($sourcePath)];
+      }
     });
 
     $m = 0;
