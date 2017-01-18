@@ -39,7 +39,7 @@ trait CommonAPI
 
   protected function getInstallPath (PackageInterface $package)
   {
-    return $this->composer->getInstallationManager ()->getInstallPath ($package);
+    return toAbsolutePath ($this->composer->getInstallationManager ()->getInstallPath ($package));
   }
 
   protected function init ()

@@ -18,6 +18,7 @@ use Composer\Util\Filesystem as FilesystemUtil;
 use PhpKit\ComposerExposedPackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Filesystem\Filesystem;
 use function PhpKit\ComposerExposedPackagesPlugin\Util\shortenPath;
+use function PhpKit\ComposerExposedPackagesPlugin\Util\toRelativePath;
 
 class Plugin implements PluginInterface, EventSubscriberInterface, Capable, CommandProvider
 {
@@ -31,7 +32,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
   private $forced = [];
   private $report = [];
   /** @var string[] */
-  private $tail   = [];
+  private $tail = [];
 
   public static function getSubscribedEvents ()
   {
@@ -68,6 +69,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       $this->info ('Package installation source was overriden for <info>' . implode (', ', $this->forced) . '</info>');
     }
     if ($this->report) {
+      ksort ($this->report);
       $m = 0;
       foreach ($this->report as $r) {
         $l = strlen ($r[0]);
@@ -75,7 +77,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       }
       $o = [];
       foreach ($this->report as $r)
-        $o[] = sprintf ("Symlinked <info>%-{$m}s</info> to package <info>%s</info>", $r[0], $r[1]);
+        $o[] = sprintf ("Symlinked <info>%-{$m}s</info> to <info>%s</info>", $r[0], $r[1]);
       $this->info (implode (PHP_EOL, $o));
     }
     if ($this->tail) {
@@ -99,10 +101,10 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       $fsUtil = new FilesystemUtil;
       $fs     = new Filesystem();
 
-      $name        = $package->getName ();
-      $packagePath = $this->getInstallPath ($package);
-      $exposurePath  = "$this->exposureDir/$name";
-      $sourcePath  = "$this->sourceDir/$name";
+      $name         = $package->getName ();
+      $packagePath  = $this->getInstallPath ($package);
+      $exposurePath = "$this->exposureDir/$name";
+      $sourcePath   = "$this->sourceDir/$name";
 
       // Install source repository if it was not installed.
       if ($package->getInstallationSource () == 'dist') {
@@ -120,12 +122,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       }
 
       // Symlink exposure directory.
-      if (!$fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath))
+      if ($fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath))
         $this->tail ("<error>Directory $exposurePath already exists and it will not be replaced by a symlink</error>");
       else {
         $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
         $fs->symlink ($packagePath, $exposurePath);
-        $this->report[] = [shortenPath ($exposurePath), $name];
+        $this->report[$name] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
       }
     }
   }
