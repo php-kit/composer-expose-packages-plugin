@@ -6,7 +6,9 @@ require "Util/util.php";
 
 use Composer\Composer;
 use Composer\EventDispatcher\EventSubscriberInterface;
+use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
+use Composer\Package\CompletePackage;
 use Composer\Plugin\Capability\CommandProvider;
 use Composer\Plugin\Capable;
 use Composer\Plugin\PluginInterface;
@@ -35,9 +37,10 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
   public static function getSubscribedEvents ()
   {
     return [
-      'post-install-cmd' => [['onPostUpdate', 0]],
-      'post-update-cmd'  => [['onPostUpdate', 0]],
-      'pre-update-cmd'   => [['onPreUpdate', 0]],
+      'pre-package-install' => [['onPreUpdate', 0]],
+      'post-package-install'  => [['onPostUpdate', 0]],
+      'pre-package-update'   => [['onPreUpdate', 0]],
+      'post-package-update'   => [['onPostUpdate', 0]],
       //      'command'          => [['parsePluginArguments', 0]],
     ];
   }
@@ -96,10 +99,20 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       $this->info (sprintf ("Symlinked <info>%-{$m}s</info> to package <info>%s</info>", $r[0], $r[1]));
   }
 
-  public function onPreUpdate (Event $event)
+  public function onPreUpdate (PackageEvent $event)
   {
     $this->init ();
+    /** @var CompletePackage $package */
+    $package = $event->getOperation ()->getPackage ();
 
+    if ($this->packageIsEligible ($package)) {
+      $name = $package->getName();
+      $this->info ("Forcing installation from source for <info>$name</info>");
+      $package->setInstallationSource('source');
+    }
+  }
+
+private function dummy () {
     $rootConfig       = $this->composer->getPackage ()->getConfig ();
     $preferredInstall = get ($rootConfig, 'preferred-install', 'dist');
     if (is_string ($preferredInstall))

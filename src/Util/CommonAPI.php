@@ -76,17 +76,13 @@ trait CommonAPI
     // Setup
 
     $this->rules     = array_unique (get ($myConfig, self::$RULES_KEY, []));
-    $this->sharedDir = str_replace ('~', getenv ('HOME'),
-      get ($myConfig, self::$SHARED_DIR_KEY, self::$DEFAULT_SHARED_DIR));
-    $this->sourceDir = str_replace ('~', getenv ('HOME'),
-      get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
-    $packages        = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
+    $this->sharedDir = expandPath (get ($myConfig, self::$SHARED_DIR_KEY, self::$DEFAULT_SHARED_DIR));
+    $this->sourceDir = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
     $rulesInfo       = implode (', ', $this->rules);
     $this->info ("Shared directory: <info>$this->sharedDir</info>");
     $this->info ("Source directory: <info>$this->sourceDir</info>");
     $this->info ("Match packages: <info>$rulesInfo</info>");
-
-    $this->packages = $packages;
+    $this->packages = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
   }
 
   protected function io ()
@@ -102,10 +98,10 @@ trait CommonAPI
   protected function iteratePackages (callable $callback)
   {
     $count = 0;
-    foreach ($this->packages as $package) {
-      $packagePath = toAbsolutePath ($this->getInstallPath ($package));
-      $packageName = $package->getName ();
-      if (globMatchAny ($this->rules, $packageName)) {
+    foreach ($this->packages as $package)
+      if ($this->packageIsEligible ($package)) {
+        $packagePath = toAbsolutePath ($this->getInstallPath ($package));
+        $packageName = $package->getName ();
         // packagePath is the installed package's path
         // sharedPath is the shared package's path
         $sharedPath = "$this->sharedDir/$packageName";
@@ -113,9 +109,13 @@ trait CommonAPI
         $callback($package, $packageName, $packagePath, $sharedPath, $sourcePath);
         ++$count;
       }
-    }
     if (!$count)
       $this->info ("No packages matched");
+  }
+
+  protected function packageIsEligible (PackageInterface $package)
+  {
+    return globMatchAny ($this->rules, $package->getName ());
   }
 
   /**
