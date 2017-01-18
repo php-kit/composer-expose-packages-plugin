@@ -1,4 +1,5 @@
 <?php
+
 namespace PhpKit\ComposerSharedPackagesPlugin\Util;
 
 trait ExtIO
@@ -7,7 +8,7 @@ trait ExtIO
 
   protected function info ()
   {
-    if ($this->io ()->isVerbose())
+    if ($this->io ()->isVerbose ())
       call_user_func_array ([$this, 'write'], func_get_args ());
     return $this;
   }
@@ -17,11 +18,9 @@ trait ExtIO
     foreach (func_get_args () as $msg) {
       $lines = explode (PHP_EOL, $msg);
       if ($lines) {
-        $this->io ()->write ($this->IOLead () . ' ' . array_shift ($lines));
-        if ($lines) {
-          $msg = implode (PHP_EOL . '    ', $lines);
-          $this->io ()->write ("    $msg");
-        }
+        $this->io ()->write ($this->IOLead ());
+        $msg = implode (PHP_EOL . '    ', $lines);
+        $this->io ()->write ("    $msg");
       }
     }
     return $this;

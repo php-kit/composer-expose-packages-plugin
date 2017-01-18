@@ -5,6 +5,7 @@ namespace PhpKit\ComposerSharedPackagesPlugin;
 require "Util/util.php";
 
 use Composer\Composer;
+use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
@@ -16,7 +17,6 @@ use Composer\Script\Event;
 use Composer\Util\Filesystem as FilesystemUtil;
 use PhpKit\ComposerSharedPackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Filesystem\Filesystem;
-use function PhpKit\ComposerSharedPackagesPlugin\Util\get;
 use function PhpKit\ComposerSharedPackagesPlugin\Util\shortenPath;
 
 /**
@@ -33,15 +33,20 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
   protected $composer;
   /** @var IOInterface */
   protected $io;
+  /** @var string[] */
+  private $forced = [];
+  private $report = [];
+  /** @var string[] */
+  private $tail   = [];
 
   public static function getSubscribedEvents ()
   {
     return [
-      'pre-package-install' => [['onPreUpdate', 0]],
-      'post-package-install'  => [['onPostUpdate', 0]],
-      'pre-package-update'   => [['onPreUpdate', 0]],
-      'post-package-update'   => [['onPostUpdate', 0]],
-      //      'command'          => [['parsePluginArguments', 0]],
+      'pre-install-cmd'      => [['onInit', 0]],
+      'pre-update-cmd'       => [['onInit', 0]],
+      'post-install-cmd'     => [['onFinish', 0]],
+      'post-update-cmd'      => [['onFinish', 0]],
+      'post-package-install' => [['onPostPackageInstall', 0]],
     ];
   }
 
@@ -63,95 +68,77 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
     return [new OriginalCommand];
   }
 
-  public function onPostUpdate (Event $event)
+  public function onFinish (Event $event)
+  {
+    if ($this->forced) {
+      $this->info ('Package installation source was overriden for <info>' . implode (', ', $this->forced) . '</info>');
+    }
+    if ($this->report) {
+      $m = 0;
+      foreach ($this->report as $r) {
+        $l = strlen ($r[0]);
+        if ($l > $m) $m = $l;
+      }
+      $o = [];
+      foreach ($this->report as $r)
+        $o[] = sprintf ("Symlinked <info>%-{$m}s</info> to package <info>%s</info>", $r[0], $r[1]);
+      $this->info (implode (PHP_EOL, $o));
+    }
+    if ($this->tail) {
+      $this->info (implode (PHP_EOL, $this->tail));
+    }
+  }
+
+  public function onInit (Event $event)
   {
     $this->init ();
+  }
 
-    $o = [];
-    $this->iteratePackages (function ($package, $packageName, $packagePath, $sharedPath, $sourcePath) use (&$o) {
+  public function onPostPackageInstall (PackageEvent $event)
+  {
+    /** @var InstallOperation $op */
+    $op = $event->getOperation ();
+    /** @var CompletePackage $package */
+    $package = $op->getPackage ();
+
+    if ($this->packageIsEligible ($package)) {
       $fsUtil = new FilesystemUtil;
       $fs     = new Filesystem();
 
-      // Copy package nackup to original package directory.
+      $name        = $package->getName ();
+      $packagePath = $this->getInstallPath ($package);
+      $sharedPath  = "$this->sharedDir/$name";
+      $sourcePath  = "$this->sourceDir/$name";
+
+      // Install source repository if it was not installed.
+      if ($package->getInstallationSource () == 'dist') {
+        $this->forced[] = $name;
+        $this->composer->getDownloadManager ()->download ($package, $packagePath, true);
+      }
+
+      // Backup package to source package directory.
       if (!$fs->exists ($sourcePath)) {
         $fsUtil->ensureDirectoryExists (dirname ($sourcePath));
         $fs->mkdir ($sourcePath);
         $fs->mirror ($packagePath, $sourcePath);
-        $this->info (sprintf ("Copied <info>%s</info> to source directory <info>%s</info>", $packageName,
+        $this->tail (sprintf ("<info>%s</info> copied to source directory <info>%s</info>", $name,
           shortenPath ($sourcePath)));
       }
 
-      if ($fs->exists ($sharedPath) && !$fsUtil->isSymlinkedDirectory ($sharedPath))
-        throw new \RuntimeException("Directory $sharedPath already exists and I won't replace it by a symlink");
-
-      $fsUtil->ensureDirectoryExists (dirname ($sharedPath));
-      $fs->symlink ($packagePath, $sharedPath);
-
-      $o[] = [shortenPath ($sharedPath), $packageName];
-    });
-
-    $m = 0;
-    foreach ($o as $r) {
-      $l = strlen ($r[0]);
-      if ($l > $m) $m = $l;
+      // Symlink shared directory.
+      if (!$fs->exists ($sharedPath) && !$fsUtil->isSymlinkedDirectory ($sharedPath))
+        $this->tail ("<error>Directory $sharedPath already exists and it will not be replaced by a symlink</error>");
+      else {
+        $fsUtil->ensureDirectoryExists (dirname ($sharedPath));
+        $fs->symlink ($packagePath, $sharedPath);
+        $this->report[] = [shortenPath ($sharedPath), $name];
+      }
     }
-    foreach ($o as $r)
-      $this->info (sprintf ("Symlinked <info>%-{$m}s</info> to package <info>%s</info>", $r[0], $r[1]));
   }
 
-  public function onPreUpdate (PackageEvent $event)
+  private function tail ($msg)
   {
-    $this->init ();
-    /** @var CompletePackage $package */
-    $package = $event->getOperation ()->getPackage ();
-
-    if ($this->packageIsEligible ($package)) {
-      $name = $package->getName();
-      $this->info ("Forcing installation from source for <info>$name</info>");
-      $package->setInstallationSource('source');
-    }
+    $this->tail[] = $msg;
   }
-
-private function dummy () {
-    $rootConfig       = $this->composer->getPackage ()->getConfig ();
-    $preferredInstall = get ($rootConfig, 'preferred-install', 'dist');
-    if (is_string ($preferredInstall))
-      $preferredInstall = ['*' => $preferredInstall];
-
-    $o = [];
-    $this->iteratePackages (function ($package, $packageName, $packagePath, $sharedPath, $sourcePath) use (&$o) {
-      $o[$packageName] = 'source';
-    });
-    $o = array_merge ($o, $preferredInstall);
-
-    $k = array_diff (array_keys ($o), ['*']);
-    if ($k) {
-      sort ($k);
-      $list = implode (', ', $k);
-      $this->info ("Forcing installation from source for <info>$list</info>");
-    }
-
-    $rootConfig['preferred-install'] = $o;
-    $this->composer->getPackage ()->setConfig ($rootConfig);
-  }
-
-//  protected function args_getFriendlyName ($argName)
-//  {
-//    return get (self::$AVAILABLE_OPTIONS, $argName);
-//  }
-//
-//  protected function args_getPrefix ()
-//  {
-//    return 'shared';
-//  }
-//
-//  protected function args_set ($name, $value)
-//  {
-//    if (isset(self::$AVAILABLE_OPTIONS[$name])) {
-//      $this->{$name . 'Option'} = $value;
-//      return true;
-//    }
-//    return false;
-//  }
 
 }

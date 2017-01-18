@@ -7,6 +7,7 @@ use Composer\Json\JsonFile;
 use Composer\Package\PackageInterface;
 use Composer\Package\RootPackage;
 use Composer\Util\Filesystem as FilesystemUtil;
+use Symfony\Component\Console\Application;
 
 /**
  * @property Composer $composer
@@ -50,6 +51,7 @@ trait CommonAPI
   {
     if (isset($this->packages))
       return;
+    $msg = '';
 
     // Load global plugin configuration
 
@@ -58,7 +60,8 @@ trait CommonAPI
       $extra    = get ($globalCfg, 'extra', []);
       $myConfig = get ($extra, self::$EXTRA_KEY, []);
       if ($myConfig)
-        $this->info ("Global configuration loaded");
+        $msg .= "Global configuration loaded
+";
     }
     else $myConfig = [];
 
@@ -70,7 +73,8 @@ trait CommonAPI
     if ($package->getName () != '__root__') {
       $projCfg  = get ($package->getExtra (), self::$EXTRA_KEY, []);
       $myConfig = array_merge_recursive ($myConfig, $projCfg);
-      $this->info ("Project-specific configuration loaded");
+      $msg      .= "Project-specific configuration loaded
+";
     }
 
     // Setup
@@ -78,11 +82,12 @@ trait CommonAPI
     $this->rules     = array_unique (get ($myConfig, self::$RULES_KEY, []));
     $this->sharedDir = expandPath (get ($myConfig, self::$SHARED_DIR_KEY, self::$DEFAULT_SHARED_DIR));
     $this->sourceDir = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
+    $this->packages  = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
+
     $rulesInfo       = implode (', ', $this->rules);
-    $this->info ("Shared directory: <info>$this->sharedDir</info>");
-    $this->info ("Source directory: <info>$this->sourceDir</info>");
-    $this->info ("Match packages: <info>$rulesInfo</info>");
-    $this->packages = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
+    $this->info ($msg . "Shared directory: <info>$this->sharedDir</info>
+Source directory: <info>$this->sourceDir</info>
+Match packages: <info>$rulesInfo</info>");
   }
 
   protected function io ()

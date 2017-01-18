@@ -53,9 +53,10 @@ class OriginalCommand extends BaseCommand
       $l = strlen ($r[0]);
       if ($l > $m) $m = $l;
     }
+    $oo = [];
     foreach ($o as $r)
-      $this->info (sprintf ("Symlinked <info>%-{$m}s</info> to <info>%s</info>", $r[0], $r[1]));
-
+      $oo[] = sprintf ("Symlinked <info>%-{$m}s</info> to <info>%s</info>", $r[0], $r[1]);
+    $this->info (implode (PHP_EOL, $oo));
   }
 
 }
