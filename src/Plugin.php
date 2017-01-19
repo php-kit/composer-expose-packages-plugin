@@ -60,7 +60,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
   public function getCommands ()
   {
-    return [new ExposeCommand, new OriginalCommand, new StatusCommand()];
+    return [new ExposeCommand, new ExposeSourceCommand, new ExposeStatusCommand()];
   }
 
   public function onFinish (Event $event)

@@ -14,7 +14,7 @@ function shortenPath ($path)
 
 function toRelativePath ($path)
 {
-  return str_replace (getcwd() . '/', '', $path);
+  return str_replace (getcwd () . '/', '', $path);
 }
 
 function expandPath ($path)

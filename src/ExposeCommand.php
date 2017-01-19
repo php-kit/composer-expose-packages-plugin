@@ -17,6 +17,8 @@ class ExposeCommand extends BaseCommand
 {
   use CommonAPI;
 
+  const DESCRIPTION = 'Reexposes all exposable packages on the current project.';
+
   /** @var Composer */
   protected $composer;
   /** @var IOInterface */
@@ -24,18 +26,19 @@ class ExposeCommand extends BaseCommand
 
   protected function configure ()
   {
-    $description = 'Reexposes for development all exposable packages on the current project.';
     $this->setName ('expose');
-    $this->setDescription ($description);
-    $this->setHelp ("$description
+    $this->setDescription (self::DESCRIPTION);
+    $this->setHelp (self::DESCRIPTION . "
 
 Each exposable package will be:
  - symlinked from the junction directory;
  - copied to the source directory if it's not already there.
  
-This command is intended for reexposing packages that were recently exposed on another project.
-When you run <info>composer install</info> or <info>composer update</info> you will fully expose packages for development, including the installation of package source repositories, which this command does not perform.
-");
+This command is intended for reexposing packages that were previously exposed on another project.
+As such, it will only create symlinks for them on the junction directory. It will not install package source repositories.
+A full exposure is only performed during a <info>composer install</info> or <info>composer update</info> when packages are being installed for the first time.
+
+Use the <info>-v</info> option to display detailed information on what was performed.");
   }
 
   protected function execute (InputInterface $input, OutputInterface $output)

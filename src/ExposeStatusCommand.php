@@ -12,9 +12,11 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 
-class StatusCommand extends BaseCommand
+class ExposeStatusCommand extends BaseCommand
 {
   use CommonAPI;
+
+  const DESCRIPTION = 'Displays information about the current state of each exposable package.';
 
   /** @var Composer */
   protected $composer;
@@ -24,7 +26,10 @@ class StatusCommand extends BaseCommand
   protected function configure ()
   {
     $this->setName ('expose-status');
-    $this->setDescription ('Displays information about exposable packages.');
+    $this->setDescription (self::DESCRIPTION);
+    $this->setHelp (self::DESCRIPTION . "
+
+Use the <info>-v</info> option to display extended information.");
   }
 
   protected function execute (InputInterface $input, OutputInterface $output)

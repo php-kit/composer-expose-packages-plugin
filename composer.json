@@ -1,25 +1,25 @@
 {
-  "name": "php-kit/composer-shared-packages-plugin",
-  "description": "Makes package development easier by exposing them on a single place for many projects",
+  "name": "php-kit/composer-expose-packages-plugin",
+  "description": "Makes package development easier by editing them on any project via the same central filesystem location",
   "type": "composer-plugin",
   "keywords": [
     "composer",
     "plugin"
   ],
-  "homepage": "https://github.com/php-kit/composer-shared-packages-plugin",
+  "homepage": "https://github.com/php-kit/composer-expose-packages-plugin",
   "license": "MIT",
   "authors": [
+    {
+      "name": "Cláudio Silva",
+      "email": "claudio.silva@impactwave.com"
+    },
     {
       "name": "Impactwave",
       "email": "impactwave@impactwave.com",
       "homepage": "http://impactwave.com"
-    },
-    {
-      "name": "Cláudio Silva",
-      "email": "claudio.silva@impactwave.com"
     }
   ],
-  "minimum-stability": "dev",
+  "minimum-stability": "stable",
   "require": {
     "composer-plugin-api": "^1.0"
   },

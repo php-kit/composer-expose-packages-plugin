@@ -15,12 +15,13 @@ trait CommonAPI
 {
   use ExtIO;
 
-  static $DEFAULT_EXPOSURE_DIR = '~/exposed-packages';
-  static $DEFAULT_SOURCE_DIR   = '~/original-packages';
-  static $EXPOSURE_DIR_KEY     = 'exposureDir';
-  static $EXTRA_KEY            = 'exposed-packages';
+  static $DEFAULT_JUNCTION_DIR = '~/exposed-packages';
+  static $DEFAULT_SOURCE_DIR   = '~/packages';
+  static $JUNCTION_DIR_KEY     = 'junctionDir';
+  static $EXTRA_KEY            = 'expose-packages';
   static $RULES_KEY            = 'match';
   static $SOURCE_DIR_KEY       = 'sourceDir';
+
   /** @var string */
   private $exposureDir;
   /** @var PackageInterface[] */
@@ -66,16 +67,18 @@ trait CommonAPI
     /** @var RootPackage $package */
     $package = $this->composer->getPackage ();
     if ($package->getName () != '__root__') {
-      $projCfg  = get ($package->getExtra (), self::$EXTRA_KEY, []);
-      $myConfig = array_merge_recursive ($myConfig, $projCfg);
-      $msg      .= "Project-specific configuration loaded
+      $projCfg = get ($package->getExtra (), self::$EXTRA_KEY, []);
+      if ($projCfg) {
+        $myConfig = array_merge_recursive ($myConfig, $projCfg);
+        $msg      .= "Project-specific configuration loaded
 ";
+      }
     }
 
     // Setup
 
     $this->rules       = array_unique (get ($myConfig, self::$RULES_KEY, []));
-    $this->exposureDir = expandPath (get ($myConfig, self::$EXPOSURE_DIR_KEY, self::$DEFAULT_EXPOSURE_DIR));
+    $this->exposureDir = expandPath (get ($myConfig, self::$JUNCTION_DIR_KEY, self::$DEFAULT_JUNCTION_DIR));
     $this->sourceDir   = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
     $this->packages    = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
 
@@ -99,7 +102,7 @@ Match packages: <info>$rulesInfo</info>");
   {
     $o = [];
     foreach ($this->packages as $package)
-      $o[$package->getName()] = $package;
+      $o[$package->getName ()] = $package;
     ksort ($o);
 
     $count = 0;

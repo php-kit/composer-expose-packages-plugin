@@ -12,9 +12,11 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use function PhpKit\ComposerExposePackagesPlugin\Util\shortenPath;
 
-class OriginalCommand extends BaseCommand
+class ExposeSourceCommand extends BaseCommand
 {
   use CommonAPI;
+
+  const DESCRIPTION = 'Retargets exposed package symlinks to the repositories on the source directory.';
 
   /** @var Composer */
   protected $composer;
@@ -23,8 +25,11 @@ class OriginalCommand extends BaseCommand
 
   protected function configure ()
   {
-    $this->setName ('expose-original');
-    $this->setDescription ('Retargets exposed package symlinks to the original repositories on the source directory.');
+    $this->setName ('expose-source');
+    $this->setDescription (self::DESCRIPTION);
+    $this->setHelp (self::DESCRIPTION . "
+
+Use the <info>-v</info> option to display detailed information on what was performed.");
   }
 
   protected function execute (InputInterface $input, OutputInterface $output)
