@@ -17,6 +17,7 @@ use Composer\Script\Event;
 use Composer\Util\Filesystem as FilesystemUtil;
 use PhpKit\ComposerExposePackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Filesystem\Filesystem;
+use function PhpKit\ComposerExposePackagesPlugin\Util\isHardLink;
 use function PhpKit\ComposerExposePackagesPlugin\Util\shortenPath;
 use function PhpKit\ComposerExposePackagesPlugin\Util\toRelativePath;
 
@@ -31,8 +32,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
   /** @var string[] */
   private $forced = [];
   private $report = [];
-  /** @var string[] */
-  private $tail = [];
 
   public static function getSubscribedEvents ()
   {
@@ -80,9 +79,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
         $o[] = sprintf ("Symlinked <info>%-{$m}s</info> to <info>%s</info>", $r[0], $r[1]);
       $this->info (implode (PHP_EOL, $o));
     }
-    if ($this->tail) {
-      $this->info (implode (PHP_EOL, $this->tail));
-    }
+    $this->displayTail ();
   }
 
   public function onInit (Event $event)
@@ -122,19 +119,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       }
 
       // Symlink exposure directory.
-      if ($fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath))
-        $this->tail ("<error>File/directory $exposurePath already exists and it will not be replaced by a symlink</error>");
-      else {
-        $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
-        $fs->symlink ($packagePath, $exposurePath);
-        $this->report[$name] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
-      }
+      $this->link ($packagePath, $exposurePath);
+      $this->report[$name] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
     }
-  }
-
-  private function tail ($msg)
-  {
-    $this->tail[] = $msg;
   }
 
 }

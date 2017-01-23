@@ -5,11 +5,9 @@ namespace PhpKit\ComposerExposePackagesPlugin;
 use Composer\Command\BaseCommand;
 use Composer\Composer;
 use Composer\IO\IOInterface;
-use Composer\Util\Filesystem as FilesystemUtil;
 use PhpKit\ComposerExposePackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Filesystem\Filesystem;
 use function PhpKit\ComposerExposePackagesPlugin\Util\shortenPath;
 use function PhpKit\ComposerExposePackagesPlugin\Util\toRelativePath;
 
@@ -49,17 +47,8 @@ Use the <info>-v</info> option to display detailed information on what was perfo
 
     $o = [];
     $this->iteratePackages (function ($package, $packageName, $packagePath, $exposurePath, $sourcePath) use (&$o) {
-      $fsUtil = new FilesystemUtil;
-      $fs     = new Filesystem();
-
-      if ($fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath))
-        $this->write ("<error>File/directory $exposurePath already exists and it will not be replaced by a symlink</error>");
-      else {
-        $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
-        $fs->symlink ($packagePath, $exposurePath);
-
-        $o[] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
-      }
+      $this->link ($packagePath, $exposurePath);
+      $o[] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
     });
 
     $m = 0;
@@ -71,6 +60,7 @@ Use the <info>-v</info> option to display detailed information on what was perfo
     foreach ($o as $r)
       $oo[] = sprintf ("Symlinked <info>%-{$m}s</info> to <info>%s</info>", $r[0], $r[1]);
     $this->info (implode (PHP_EOL, $oo));
+    $this->displayTail ();
   }
 
 }

@@ -7,6 +7,7 @@ use Composer\Json\JsonFile;
 use Composer\Package\PackageInterface;
 use Composer\Package\RootPackage;
 use Composer\Util\Filesystem as FilesystemUtil;
+use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * @property Composer $composer
@@ -17,8 +18,9 @@ trait CommonAPI
 
   static $DEFAULT_JUNCTION_DIR = '~/exposed-packages';
   static $DEFAULT_SOURCE_DIR   = '~/packages';
-  static $JUNCTION_DIR_KEY     = 'junctionDir';
   static $EXTRA_KEY            = 'expose-packages';
+  static $HARD_LINKS_KEY       = 'useHardLinks';
+  static $JUNCTION_DIR_KEY     = 'junctionDir';
   static $RULES_KEY            = 'match';
   static $SOURCE_DIR_KEY       = 'sourceDir';
 
@@ -30,6 +32,10 @@ trait CommonAPI
   private $rules;
   /** @var string The path to a directory that will hold a master copy of all exposed repositories */
   private $sourceDir;
+  /** @var bool */
+  private $useHardLinks = false;
+  /** @var string[] */
+  private $tail = [];
 
   protected function getGlobalConfig ()
   {
@@ -77,10 +83,11 @@ trait CommonAPI
 
     // Setup
 
-    $this->rules       = array_unique (get ($myConfig, self::$RULES_KEY, []));
-    $this->exposureDir = expandPath (get ($myConfig, self::$JUNCTION_DIR_KEY, self::$DEFAULT_JUNCTION_DIR));
-    $this->sourceDir   = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
-    $this->packages    = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
+    $this->rules        = array_unique (get ($myConfig, self::$RULES_KEY, []));
+    $this->exposureDir  = expandPath (get ($myConfig, self::$JUNCTION_DIR_KEY, self::$DEFAULT_JUNCTION_DIR));
+    $this->sourceDir    = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
+    $this->packages     = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
+    $this->useHardLinks = get ($myConfig, self::$HARD_LINKS_KEY, false);
 
     $rulesInfo = implode (', ', $this->rules);
     $this->info ($msg . "Exposure directory: <info>$this->exposureDir</info>
@@ -144,6 +151,39 @@ Match packages: <info>$rulesInfo</info>");
     catch (\RuntimeException $e) {
       $this->info ("Couldn't remove temporary directory <info>$tmp</info>");
     }
+  }
+
+  protected function link ($packagePath, $exposurePath)
+  {
+    $fsUtil = new FilesystemUtil;
+    $fs     = new Filesystem();
+
+    if ($fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath) && !isHardLink ($exposurePath))
+      $this->tail ("<error>File/directory $exposurePath already exists and it will not be replaced by a link</error>");
+    else {
+      $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
+      if ($this->useHardLinks) {
+        if ($fs->exists ($exposurePath)) {
+          if (isHardLink ($exposurePath))
+            $fs->remove ($exposurePath);
+        }
+        $fs->hardlink ($packagePath, $exposurePath);
+      }
+      else $fs->symlink ($packagePath, $exposurePath);
+    }
+
+  }
+
+  protected function tail ($msg)
+  {
+    $this->tail[] = $msg;
+  }
+
+
+  protected function displayTail ()
+  {
+    if ($this->tail)
+      $this->info (implode (PHP_EOL, $this->tail));
   }
 
 }

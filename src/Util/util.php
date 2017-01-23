@@ -34,3 +34,8 @@ function globMatchAny (array $rules, $target)
       return true;
   return false;
 }
+
+function isHardLink ($path)
+{
+  return stat ($path)['nlink'] > 1;
+}

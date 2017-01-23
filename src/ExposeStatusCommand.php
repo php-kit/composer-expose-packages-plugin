@@ -11,6 +11,7 @@ use PhpKit\ComposerExposePackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
+use function PhpKit\ComposerExposePackagesPlugin\Util\isHardLink;
 
 class ExposeStatusCommand extends BaseCommand
 {
@@ -55,7 +56,9 @@ There are no package exposition rules defined.');
 
       $type = ' ';
       if (file_exists ($exposurePath)) {
-        if ($fsUtil->isSymlinkedDirectory ($exposurePath)) {
+        if (isHardLink($exposurePath))
+          $type = 'H';
+        elseif ($fsUtil->isSymlinkedDirectory ($exposurePath)) {
           $targetPath = readlink ($exposurePath);
           if ($targetPath == $packagePath)
             $type = 'E';
@@ -82,6 +85,7 @@ Exposable packages on the current project:
   <comment>[</comment> <comment>]</comment> - Not exposed
   <comment>[</comment>E<comment>]</comment> - Exposed
   <comment>[</comment>S<comment>]</comment> - Source
+  <comment>[</comment>H<comment>]</comment> - Hard link
   <comment>[</comment><error>?</error><comment>]</comment> - Unexpected file, directory or foreign symlink at junction
 ");
     }
