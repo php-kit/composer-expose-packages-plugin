@@ -17,7 +17,6 @@ use Composer\Script\Event;
 use Composer\Util\Filesystem as FilesystemUtil;
 use PhpKit\ComposerExposePackagesPlugin\Util\CommonAPI;
 use Symfony\Component\Filesystem\Filesystem;
-use function PhpKit\ComposerExposePackagesPlugin\Util\isHardLink;
 use function PhpKit\ComposerExposePackagesPlugin\Util\shortenPath;
 use function PhpKit\ComposerExposePackagesPlugin\Util\toRelativePath;
 

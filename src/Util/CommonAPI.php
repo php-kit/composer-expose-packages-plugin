@@ -23,6 +23,7 @@ trait CommonAPI
   static $JUNCTION_DIR_KEY     = 'junctionDir';
   static $RULES_KEY            = 'match';
   static $SOURCE_DIR_KEY       = 'sourceDir';
+  static $SOURCE_TREE_CFG_PATH = '~/Library/Application Support/SourceTree/browser.plist';
 
   /** @var string */
   private $exposureDir;
@@ -32,10 +33,16 @@ trait CommonAPI
   private $rules;
   /** @var string The path to a directory that will hold a master copy of all exposed repositories */
   private $sourceDir;
-  /** @var bool */
-  private $useHardLinks = false;
+  /** @var bool Are we on MacOS and the SourceTree application is installed? */
+  private $sourceTreeIsInstalled = false;
   /** @var string[] */
   private $tail = [];
+
+  protected function displayTail ()
+  {
+    if ($this->tail)
+      $this->info (implode (PHP_EOL, $this->tail));
+  }
 
   protected function getGlobalConfig ()
   {
@@ -83,16 +90,17 @@ trait CommonAPI
 
     // Setup
 
-    $this->rules        = array_unique (get ($myConfig, self::$RULES_KEY, []));
-    $this->exposureDir  = expandPath (get ($myConfig, self::$JUNCTION_DIR_KEY, self::$DEFAULT_JUNCTION_DIR));
-    $this->sourceDir    = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
-    $this->packages     = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
-    $this->useHardLinks = get ($myConfig, self::$HARD_LINKS_KEY, false);
+    $this->rules       = array_unique (get ($myConfig, self::$RULES_KEY, []));
+    $this->exposureDir = expandPath (get ($myConfig, self::$JUNCTION_DIR_KEY, self::$DEFAULT_JUNCTION_DIR));
+    $this->sourceDir   = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
+    $this->packages    = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
 
     $rulesInfo = implode (', ', $this->rules);
     $this->info ($msg . "Exposure directory: <info>$this->exposureDir</info>
 Source directory: <info>$this->sourceDir</info>
 Match packages: <info>$rulesInfo</info>");
+
+    $this->sourceTreeIsInstalled = file_exists ($this->getSourceTreeCfgPath ());
   }
 
   protected function io ()
@@ -128,6 +136,21 @@ Match packages: <info>$rulesInfo</info>");
       $this->info ("No packages matched");
   }
 
+  protected function link ($targetPath, $junctionPath)
+  {
+    $fsUtil = new FilesystemUtil;
+    $fs     = new Filesystem();
+
+    if ($fs->exists ($junctionPath) && !$fsUtil->isSymlinkedDirectory ($junctionPath))
+      $this->tail ("<error>File/directory $junctionPath already exists and it will not be replaced by a link</error>");
+    else {
+      $fsUtil->ensureDirectoryExists (dirname ($junctionPath));
+      $fs->symlink ($targetPath, $junctionPath);
+      if ($this->sourceTreeIsInstalled)
+        $this->updateSourceTree ($targetPath, $junctionPath);
+    }
+  }
+
   protected function packageIsEligible (PackageInterface $package)
   {
     // The ?:[] is here to avoid an error during the installation of the package itself.
@@ -153,37 +176,32 @@ Match packages: <info>$rulesInfo</info>");
     }
   }
 
-  protected function link ($packagePath, $exposurePath)
-  {
-    $fsUtil = new FilesystemUtil;
-    $fs     = new Filesystem();
-
-    if ($fs->exists ($exposurePath) && !$fsUtil->isSymlinkedDirectory ($exposurePath) && !isHardLink ($exposurePath))
-      $this->tail ("<error>File/directory $exposurePath already exists and it will not be replaced by a link</error>");
-    else {
-      $fsUtil->ensureDirectoryExists (dirname ($exposurePath));
-      if ($this->useHardLinks) {
-        if ($fs->exists ($exposurePath)) {
-          if (isHardLink ($exposurePath))
-            $fs->remove ($exposurePath);
-        }
-        $fs->hardlink ($packagePath, $exposurePath);
-      }
-      else $fs->symlink ($packagePath, $exposurePath);
-    }
-
-  }
-
   protected function tail ($msg)
   {
     $this->tail[] = $msg;
   }
 
-
-  protected function displayTail ()
+  private function getSourceTreeCfgPath ()
   {
-    if ($this->tail)
-      $this->info (implode (PHP_EOL, $this->tail));
+    return expandPath (self::$SOURCE_TREE_CFG_PATH);
+  }
+
+  private function updateSourceTree ($targetPath, $junctionPath)
+  {
+    $path = $this->getSourceTreeCfgPath ();
+    $file = file_get_contents ($path);
+    if ($file[0] != '<') {
+      $file = `plutil -convert xml1 -o /dev/stdout "$path"`;
+      if ($file[0] != '<') {
+        $this->tail ("<error>Cannot read SourceTree config file");
+        return;
+      }
+    }
+    $file = str_replace ($targetPath, $junctionPath, $file, $count);
+    if ($count) {
+      file_put_contents ($path, $file);
+      $this->tail (sprintf ("SourceTree repository path updated for <info>%s</info>", basename ($targetPath)));
+    }
   }
 
 }

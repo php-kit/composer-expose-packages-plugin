@@ -25,11 +25,10 @@ These features are quite useful when you want to:
 
 #### Additional Features
 
-This plugin
-
+- On MacOS, if you have SourceTree installed, it updates the registered repository paths to use the junction directories, not the symlink targets (SourceTree must not be running); this needs to be done only once for each repository;
 - Supports custom package installation directories, where some packages may use installer plugins that install them to alternative locations (other than the default `vendor` directory);
 - Supports customizing the vendor directory location using the `config.vendor-dir` standard Composer setting;
-- supports symlinking on Windows (using "junctions").
+- Supports symlinking on Windows (using "junctions") - `To be done`.
 
 ### Requirements
 
