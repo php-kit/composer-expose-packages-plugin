@@ -88,6 +88,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
 
   public function onPostPackageInstall (PackageEvent $event)
   {
+    $this->init (); // Required when installing this plugin, as the init events won't fire.
+
     /** @var InstallOperation $op */
     $op = $event->getOperation ();
     /** @var CompletePackage $package */

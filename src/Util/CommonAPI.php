@@ -153,8 +153,7 @@ Match packages: <info>$rulesInfo</info>");
 
   protected function packageIsEligible (PackageInterface $package)
   {
-    // The ?:[] is here to avoid an error during the installation of the package itself.
-    return globMatchAny ($this->rules ?: [], $package->getName ());
+    return globMatchAny ($this->rules, $package->getName ());
   }
 
   /**
