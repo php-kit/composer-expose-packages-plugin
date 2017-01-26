@@ -6,6 +6,7 @@ require "Util/util.php";
 
 use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
+use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
@@ -131,7 +132,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
     /** @var InstallOperation $op */
     $op = $event->getOperation ();
     /** @var CompletePackage $package */
-    $package = $op->getPackage ();
+    $package = $op instanceof UpdateOperation ? $op->getTargetPackage () :$op->getPackage ();
 
     if ($this->packageIsEligible ($package)) {
       $name         = $package->getName ();
