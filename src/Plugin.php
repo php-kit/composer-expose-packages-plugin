@@ -40,6 +40,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       'post-install-cmd'     => [['onFinish', 0]],
       'post-update-cmd'      => [['onFinish', 0]],
       'post-package-install' => [['onPostPackageInstall', 0]],
+      'post-package-update'  => [['onPostPackageUpdate', 0]],
     ];
   }
 
@@ -122,6 +123,25 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       // Symlink exposure directory.
       $this->link ($packagePath, $exposurePath);
       $this->report[$name] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
+    }
+  }
+
+  public function onPostPackageUpdate (PackageEvent $event)
+  {
+    /** @var InstallOperation $op */
+    $op = $event->getOperation ();
+    /** @var CompletePackage $package */
+    $package = $op->getPackage ();
+
+    if ($this->packageIsEligible ($package)) {
+      $name         = $package->getName ();
+      $packagePath  = $this->getInstallPath ($package);
+
+      // Install source repository if it was removed.
+      if ($package->getInstallationSource () == 'dist') {
+        $this->forced[] = $name;
+        $this->composer->getDownloadManager ()->download ($package, $packagePath, true);
+      }
     }
   }
 
