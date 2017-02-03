@@ -2,7 +2,7 @@
 
 namespace PhpKit\ComposerExposePackagesPlugin;
 
-require "Util/util.php";
+require_once __DIR__ . "/Util/util.php";
 
 use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
@@ -132,11 +132,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
     /** @var InstallOperation $op */
     $op = $event->getOperation ();
     /** @var CompletePackage $package */
-    $package = $op instanceof UpdateOperation ? $op->getTargetPackage () :$op->getPackage ();
+    $package = $op instanceof UpdateOperation ? $op->getTargetPackage () : $op->getPackage ();
 
     if ($this->packageIsEligible ($package)) {
-      $name         = $package->getName ();
-      $packagePath  = $this->getInstallPath ($package);
+      $name        = $package->getName ();
+      $packagePath = $this->getInstallPath ($package);
 
       // Install source repository if it was removed.
       if ($package->getInstallationSource () == 'dist') {
