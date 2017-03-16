@@ -95,12 +95,14 @@ trait CommonAPI
     $this->sourceDir   = expandPath (get ($myConfig, self::$SOURCE_DIR_KEY, self::$DEFAULT_SOURCE_DIR));
     $this->packages    = $this->composer->getRepositoryManager ()->getLocalRepository ()->getCanonicalPackages ();
 
-    $rulesInfo = implode (', ', $this->rules);
+    $rulesInfo                   = implode (', ', $this->rules);
+    $this->sourceTreeIsInstalled = file_exists ($this->getSourceTreeCfgPath ());
+    $srcTree                     = $this->sourceTreeIsInstalled ? 'detected' : 'none detected';
+
     $this->info ($msg . "Exposure directory: <info>$this->exposureDir</info>
 Source directory: <info>$this->sourceDir</info>
-Match packages: <info>$rulesInfo</info>");
-
-    $this->sourceTreeIsInstalled = file_exists ($this->getSourceTreeCfgPath ());
+Match packages: <info>$rulesInfo</info>
+SourceTree repositories: <info>$srcTree</info>");
   }
 
   protected function io ()
@@ -192,7 +194,7 @@ Match packages: <info>$rulesInfo</info>");
     if ($file[0] != '<') {
       $file = `plutil -convert xml1 -o /dev/stdout "$path"`;
       if ($file[0] != '<') {
-        $this->tail ("<error>Cannot read SourceTree config file");
+        $this->tail ("<error>Cannot read SourceTree config file</error>");
         return;
       }
     }
