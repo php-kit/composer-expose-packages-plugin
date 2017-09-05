@@ -91,6 +91,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
   public function onPostPackageInstall (PackageEvent $event)
   {
     $this->init (); // Required when installing this plugin, as the init events won't fire.
+    $isWindows        = strtoupper (substr (PHP_OS, 0, 3)) === 'WIN';
 
     /** @var InstallOperation $op */
     $op = $event->getOperation ();
@@ -121,9 +122,18 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
           shortenPath ($sourcePath)));
       }
 
-      // Symlink exposure directory.
-      $this->link ($packagePath, $exposurePath);
-      $this->report[$name] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
+      if (!$isWindows) {
+        // Symlink exposure directory.
+        $this->link ($packagePath, $exposurePath);
+        $this->report[$name] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
+      }
+      else {
+        // Create a junction instead of a symlink to avoid requiring administrator permissions.
+        // Relative symlinks do not work properly on Windows, so we use absolute paths.
+        exec (sprintf ('mklink /j "%s" "%s"',
+          str_replace ('/', '\\', $exposurePath),
+          str_replace ('/', '\\', $packagePath)));
+      }
     }
   }
 

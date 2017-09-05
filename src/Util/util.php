@@ -14,7 +14,7 @@ function shortenPath ($path)
 
 function toRelativePath ($path)
 {
-  return str_replace (getcwd () . '/', '', $path);
+  return str_replace (getcwd () . DIRECTORY_SEPARATOR, '', $path);
 }
 
 function expandPath ($path)
@@ -24,7 +24,7 @@ function expandPath ($path)
 
 function toAbsolutePath ($path)
 {
-  return !$path || $path[0] == '/' || $path[0] == '\\' ? $path : getcwd () . DIRECTORY_SEPARATOR . $path;
+  return !$path || preg_match('/^\/|^\\\\|^\w:/',$path) ? $path : getcwd () . DIRECTORY_SEPARATOR . $path;
 }
 
 function globMatchAny (array $rules, $target)
