@@ -140,6 +140,7 @@ SourceTree repositories: <info>$srcTree</info>");
 
   protected function link ($targetPath, $junctionPath)
   {
+    $isWindows        = strtoupper (substr (PHP_OS, 0, 3)) === 'WIN';
     $fsUtil = new FilesystemUtil;
     $fs     = new Filesystem();
 
@@ -147,7 +148,14 @@ SourceTree repositories: <info>$srcTree</info>");
       $this->tail ("<error>File/directory $junctionPath already exists and it will not be replaced by a link</error>");
     else {
       $fsUtil->ensureDirectoryExists (dirname ($junctionPath));
+      if (!$isWindows)
       $fs->symlink ($targetPath, $junctionPath);
+      else
+        // On Windows, create a junction instead of a symlink to avoid requiring administrator permissions.
+        // Warning: relative symlinks do not work properly on Windows, so the caller must provide absolute paths!
+        exec (sprintf ('mklink /j "%s" "%s"',
+          str_replace ('/', '\\', $junctionPath),
+          str_replace ('/', '\\', $targetPath)));
       if ($this->sourceTreeIsInstalled)
         $this->updateSourceTree ($targetPath, $junctionPath);
     }
