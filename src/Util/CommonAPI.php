@@ -167,23 +167,14 @@ SourceTree repositories: <info>$srcTree</info>");
   }
 
   /**
-   * Remove a directory, even if some files in it are undeletable (in which case the directory will be archive on a
-   * system temporary directory).
+   * Remove a directory, whether it is a symlink, a Windows junction or a true directory.
    *
    * @param string $path
    */
   protected function removeDir ($path)
   {
-    $tmp = sys_get_temp_dir () . '/' . uniqid ();
-    if (@!rename ($path, $tmp))
-      throw new \RuntimeException("Couldn't remove directory <fg=cyan;bg=red>$path</>");
     $fsUtil = new FilesystemUtil;
-    try {
-      $fsUtil->removeDirectory ($tmp);
-    }
-    catch (\RuntimeException $e) {
-      $this->info ("Couldn't remove temporary directory <info>$tmp</info>");
-    }
+    $fsUtil->removeDirectory ($path);
   }
 
   protected function tail ($msg)
