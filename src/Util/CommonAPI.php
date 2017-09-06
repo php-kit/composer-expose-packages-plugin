@@ -19,6 +19,7 @@ trait CommonAPI
   static $DEFAULT_JUNCTION_DIR = '~/exposed-packages';
   static $DEFAULT_SOURCE_DIR   = '~/packages';
   static $EXTRA_KEY            = 'expose-packages';
+  static $GIT_USER_VAR         = 'GIT_USER';
   static $HARD_LINKS_KEY       = 'useHardLinks';
   static $JUNCTION_DIR_KEY     = 'junctionDir';
   static $RULES_KEY            = 'match';
@@ -180,6 +181,40 @@ SourceTree repositories: <info>$srcTree</info>");
   protected function tail ($msg)
   {
     $this->tail[] = $msg;
+  }
+
+  /**
+   * Modify the username of the push-url of the package's repository.
+   *
+   * @param string $packageName
+   * @param string $packagePath
+   */
+  protected function updatePushUrl ($packageName, $packagePath)
+  {
+    $envVar    = self::$GIT_USER_VAR;
+    $user      = getenv ($envVar);
+    $errorBase = "Could not update the <info>$packageName</info> repository's push URL:
+ ";
+    if (!$user)
+      $this->tail ("$errorBase Environment variable <info>$envVar</info> is not set");
+    else {
+      $path = "$packagePath/.git/config";
+      if (is_readable ($path) && ($content = file_get_contents ($path))) {
+        $content = preg_replace ('#(pushurl *= *)git@(.*?):#', "$1https://$user@$2/", $content, -1, $count);
+        if (!$count) {
+          $content = preg_replace ('#\b(url *= *https?://)(?:[\w\-\.]+@)?#', "$1$user@", $content, -1, $count);
+          if (!$count) {
+            $this->tail ("$errorBase No compatible push URL was found");
+            return;
+          }
+        }
+        if (is_writable ($path) && file_put_contents ($path, $content)) {
+          $this->tail ("Repository's push URL updated on package <info>$packageName</info>");
+          return;
+        }
+      }
+      $this->tail ("$errorBase <info>$path</info> cannot be modified");
+    }
   }
 
   private function getSourceTreeCfgPath ()

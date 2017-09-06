@@ -50,6 +50,8 @@ Use the <info>-v</info> option to display detailed information on what was perfo
       $this->removeDir ($exposurePath);
       $this->link ($packagePath, $exposurePath);
       $o[] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
+
+      $this->updatePushUrl ($packageName, $packagePath);
     });
 
     $m = 0;

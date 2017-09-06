@@ -41,6 +41,8 @@ Use the <info>-v</info> option to display detailed information on what was perfo
       $this->removeDir ($exposurePath);
       $this->link ($sourcePath, $exposurePath);
       $o[] = [shortenPath ($exposurePath), shortenPath ($sourcePath)];
+
+      $this->updatePushUrl ($packageName, $packagePath);
     });
 
     $m = 0;
