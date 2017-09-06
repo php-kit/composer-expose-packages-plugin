@@ -38,6 +38,7 @@ Use the <info>-v</info> option to display detailed information on what was perfo
 
     $o = [];
     $this->iteratePackages (function ($package, $packageName, $packagePath, $exposurePath, $sourcePath) use (&$o) {
+      $this->removeDir ($exposurePath);
       $this->link ($sourcePath, $exposurePath);
       $o[] = [shortenPath ($exposurePath), shortenPath ($sourcePath)];
     });

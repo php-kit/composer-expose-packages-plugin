@@ -140,22 +140,22 @@ SourceTree repositories: <info>$srcTree</info>");
 
   protected function link ($targetPath, $junctionPath)
   {
-    $isWindows        = strtoupper (substr (PHP_OS, 0, 3)) === 'WIN';
-    $fsUtil = new FilesystemUtil;
-    $fs     = new Filesystem();
+    $isWindows = strtoupper (substr (PHP_OS, 0, 3)) === 'WIN';
+    $fsUtil    = new FilesystemUtil;
+    $fs        = new Filesystem();
 
     if ($fs->exists ($junctionPath) && !$fsUtil->isSymlinkedDirectory ($junctionPath))
       $this->tail ("<error>File/directory $junctionPath already exists and it will not be replaced by a link</error>");
     else {
+      // Ensure the junction directory's parent dir exists
       $fsUtil->ensureDirectoryExists (dirname ($junctionPath));
+
       if (!$isWindows)
-      $fs->symlink ($targetPath, $junctionPath);
+        $fs->symlink ($targetPath, $junctionPath);
       else
         // On Windows, create a junction instead of a symlink to avoid requiring administrator permissions.
-        // Warning: relative symlinks do not work properly on Windows, so the caller must provide absolute paths!
-        exec (sprintf ('mklink /j "%s" "%s"',
-          str_replace ('/', '\\', $junctionPath),
-          str_replace ('/', '\\', $targetPath)));
+        $fsUtil->junction ($targetPath, $junctionPath);
+
       if ($this->sourceTreeIsInstalled)
         $this->updateSourceTree ($targetPath, $junctionPath);
     }
@@ -167,7 +167,8 @@ SourceTree repositories: <info>$srcTree</info>");
   }
 
   /**
-   * Remove a directory, even if some files in it are undeletable.
+   * Remove a directory, even if some files in it are undeletable (in which case the directory will be archive on a
+   * system temporary directory).
    *
    * @param string $path
    */

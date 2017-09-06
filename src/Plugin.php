@@ -122,6 +122,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable, Comm
       }
 
       // Symlink exposure directory.
+      $this->removeDir ($exposurePath);
       $this->link ($packagePath, $exposurePath);
       $this->report[$name] = [shortenPath ($exposurePath), toRelativePath ($packagePath)];
     }
